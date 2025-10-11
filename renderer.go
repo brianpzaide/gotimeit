@@ -12,7 +12,7 @@ var (
 	t                *template.Template
 	tmplData         *templateData
 	tmplDataEnvelope *templateDataEnvelope
-	mu               *sync.Mutex
+	mu               *sync.Mutex = &sync.Mutex{}
 )
 
 func updateTemplateData(endSession bool) error {
@@ -21,12 +21,14 @@ func updateTemplateData(endSession bool) error {
 	if endSession {
 		todaysSummary, err := todaysSummary()
 		if err != nil {
+			fmt.Println("updateTemplateData - 24: error in getting today's summary")
 			return err
 		}
 		tmplData.TodaysData = transformDataForTodaysSessions(todaysSummary)
 	}
 	currentSession, err := getCurrentSession()
 	if err != nil {
+		fmt.Println("updateTemplateData - 31: error in getting current session")
 		return err
 	}
 	tmplDataEnvelope.ActiveSession = ""
@@ -37,7 +39,7 @@ func updateTemplateData(endSession bool) error {
 	if err != nil {
 		return fmt.Errorf("error marshalling template data to JSON")
 	}
-	tmplDataEnvelope.TmplDataJSON = tmplDataJSON
+	tmplDataEnvelope.TmplDataJSON = string(tmplDataJSON)
 	return nil
 }
 
@@ -58,7 +60,13 @@ func computeTemplateData() error {
 	// compute current year's monthly sessions
 	monthlyActivitySessionsDB, err := getTimeSpentOnEachActivityMonthly()
 	if err != nil {
+		fmt.Println("computeTemplateData Error: during computing current year's monthly sessions")
 		return err
+	}
+	fmt.Println("computeTemplateData: successfully computed current year's monthly sessions")
+	fmt.Println("transformDataForCurrentYearSessions data from db")
+	for _, mas := range monthlyActivitySessionsDB {
+		fmt.Printf("month: %d, activity: %s, duration: %.2f\n", mas.Month, mas.Activity, mas.Duration)
 	}
 	monthlyActivitySessions := transformDataForCurrentYearSessions(monthlyActivitySessionsDB)
 	tmplData.CurrentYearMonthlyData = monthlyActivitySessions
@@ -66,22 +74,28 @@ func computeTemplateData() error {
 	// compute over the years
 	overTheYearsActivitiesSessionsDB, err := getTimeSpentOnEachActivityOverTheYears()
 	if err != nil {
+		fmt.Println("computeTemplateData Error: during computing over the years sessions")
 		return err
 	}
+	fmt.Println("computeTemplateData: successfully computed over the years sessions")
 	overTheYearsActivitiesSessions := transformDataForOverAllYearsSessions(overTheYearsActivitiesSessionsDB)
 	tmplData.OverTheYearsActivitySessions = overTheYearsActivitiesSessions
 
 	// compute today's sessions
 	err = updateTemplateData(true)
 	if err != nil {
+		fmt.Println("computeTemplateData Error: during computing today's sessions")
 		return err
 	}
+	fmt.Println("computeTemplateData: successfully computed today's sessions")
 
 	tmplDataJSON, err := writeJSON()
 	if err != nil {
+		fmt.Println("computeTemplateData Error: during marshalling templateData into JSON")
 		return fmt.Errorf("error marshalling template data to JSON")
 	}
-	tmplDataEnvelope.TmplDataJSON = tmplDataJSON
+	fmt.Println("computeTemplateData: successfully marshalled templateData into JSON")
+	tmplDataEnvelope.TmplDataJSON = string(tmplDataJSON)
 	return nil
 }
 
@@ -173,7 +187,7 @@ const HOME_PAGE = `
   </style>
 </head>
 <body>
-  {{if .FlashErrorMessage}} 
+  <!--{{if .FlashErrorMessage}} 
     <div id="flash-message" style="background-color: #feddc7; color: #92400e; padding: 1rem; border: 1px solid #facc15; border-radius: 6px; margin: 1rem 0; position: relative;">
       <span>This is a flash message.</span>
       <button onclick="document.getElementById('flash-message').style.display='none'"
@@ -181,14 +195,14 @@ const HOME_PAGE = `
         &times;
       </button>
     </div>
-  {{end}}
+  {{end}}-->
   
   <div class="card">
     <div id="user-action">
       {{if .ActiveSession}} 
         <div class="instruction">Session for the activity {{.ActiveSession}} is currently active. To start a new session click Stop first to end the current session</div>
         <form action="/sessions" method="get">
-          <input type="hidden" name="action" value="stop" />
+          <input type="hidden" name="action" value="end" />
           <button type="submit" style="background-color: red; width: 100%; margin-top: 9px;">
             Stop
           </button>
@@ -216,15 +230,17 @@ const HOME_PAGE = `
   <script type="application/json" id="activity-data">{{ .TmplDataJSON }}</script>
   <script>
 
-    document.getElementById("start-session-form").addEventListener("submit", function (event) {
-      event.preventDefault();
+    {{if not .ActiveSession}}
+      document.getElementById("start-session-form").addEventListener("submit", function (event) {
+        event.preventDefault();
 
-      const form = event.target;
-      const activityName = encodeURIComponent(form.activity.value);
+        const form = event.target;
+        const activityName = encodeURIComponent(form.activity.value);
 
-      const url = "/sessions/" + activityName + "?action=start";
-      window.location.href = url;
-    });
+        const url = "/sessions/" + activityName + "?action=start";
+        window.location.href = url;
+      });
+    {{end}}  
 
 
     const jsonString = document.getElementById("activity-data").textContent;

@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -11,9 +9,15 @@ import (
 // ([{Activity: "programming", "Duration"}, ...]) -> ActivitiesSessionsToday
 func transformDataForTodaysSessions(todaysActivitiesSessions []ActivitySession) ActivitiesSessionsToday {
 	activities, durations := make([]string, 0), make([]float32, 0)
+	unTracked := float32(24)
 	for _, tas := range todaysActivitiesSessions {
 		activities = append(activities, tas.Activity)
 		durations = append(durations, tas.Duration)
+		unTracked -= tas.Duration
+	}
+	if unTracked > 0 {
+		activities = append(activities, "UnTracked")
+		durations = append(durations, unTracked)
 	}
 	return ActivitiesSessionsToday{
 		Activities: activities,
@@ -24,6 +28,12 @@ func transformDataForTodaysSessions(todaysActivitiesSessions []ActivitySession) 
 // this function transforms the data coming from the database into something apex charts expects
 // ([{Activity: "programming", "Duration", Month: 1}, ...]) -> CurrentActivitySessions
 func transformDataForCurrentYearSessions(monthsActivitiesSessions []MonthActivitySession) CurrentYearActivitySessions {
+	fmt.Println("transformDataForCurrentYearSessions called")
+	fmt.Println("transformDataForCurrentYearSessions data from db")
+	for _, mas := range monthsActivitiesSessions {
+		fmt.Printf("month: %d, activity: %s, duration: %.2f\n", mas.Month, mas.Activity, mas.Duration)
+	}
+
 	activitySessionsMap := make(map[string]*[12]float32)
 	for _, mas := range monthsActivitiesSessions {
 		if activitySessionsMap[mas.Activity] == nil {
@@ -37,6 +47,12 @@ func transformDataForCurrentYearSessions(monthsActivitiesSessions []MonthActivit
 			Activity: activityName,
 			Sessions: sessions[:],
 		})
+	}
+	for _, as := range activitiesSessions {
+		fmt.Println(as.Activity)
+		for i, dur := range as.Sessions {
+			fmt.Printf("month: %d, duration: %.2f\n", i, dur)
+		}
 	}
 	return CurrentYearActivitySessions{
 		Title:            fmt.Sprintf("Time spent on activities in %d", time.Now().Year()),
@@ -124,10 +140,10 @@ func todaysSummary() ([]ActivitySession, error) {
 	return todaysSessions, nil
 }
 
-func addErrMessageCookie(w http.ResponseWriter, msg string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:  "flash",
-		Value: url.QueryEscape(msg),
-		Path:  "/",
-	})
-}
+// func addErrMessageCookie(w http.ResponseWriter, msg string) {
+// 	http.SetCookie(w, &http.Cookie{
+// 		Name:  "flash",
+// 		Value: url.QueryEscape(msg),
+// 		Path:  "/",
+// 	})
+// }

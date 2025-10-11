@@ -74,5 +74,5 @@ type templateData struct {
 type templateDataEnvelope struct {
 	ActiveSession     string
 	FlashErrorMessage string
-	TmplDataJSON      []byte
+	TmplDataJSON      string
 }

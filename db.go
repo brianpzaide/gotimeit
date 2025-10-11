@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -21,7 +22,7 @@ const create_activity_session = `INSERT INTO activitysessions(date, activity, st
 
 const end_current_activity = `UPDATE activitysessions SET stop_time = ? where id = ?;`
 
-const get_current_activity_session = `SELECT id, activity, start_time 
+const get_current_activity_session = `SELECT id, activity 
 	FROM activitysessions 
 	where stop_time is NULL 
 	ORDER BY start_time DESC 
@@ -94,9 +95,11 @@ func getCurrentSession() (ActivitySessionInfo, error) {
 	err = db.QueryRow(get_current_activity_session).Scan(
 		&currentSessionInfo.Id,
 		&currentSessionInfo.Activity,
-		&currentSessionInfo.StartTime,
 	)
 	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return ActivitySessionInfo{}, nil
+		}
 		return ActivitySessionInfo{}, err
 	}
 
@@ -118,6 +121,7 @@ func endActivitySession(id int) error {
 }
 
 func getTimeSpentOnEachActivityForToday() ([]ActivitySession, error) {
+	fmt.Println("getTimeSpentOnEachActivityForToday called")
 	db, err := getDBConnection()
 	if err != nil {
 		return nil, err
@@ -129,11 +133,13 @@ func getTimeSpentOnEachActivityForToday() ([]ActivitySession, error) {
 
 	rows, err := db.Query(get_activity_sessions_for_today, today)
 	if err != nil {
+		fmt.Println("today's sessions error in db.go line 133")
 		return nil, err
 	}
 	defer rows.Close()
 	sessions := make([]ActivitySession, 0)
 
+	i := 0
 	for rows.Next() {
 		var activitySession ActivitySession
 		err = rows.Scan(
@@ -141,9 +147,11 @@ func getTimeSpentOnEachActivityForToday() ([]ActivitySession, error) {
 			&activitySession.Duration,
 		)
 		if err != nil {
+			fmt.Printf("today's sessions error in db.go line 146 iteration: %d", i)
 			return nil, err
 		}
 		sessions = append(sessions, activitySession)
+		i += 1
 	}
 	return sessions, nil
 }
@@ -154,7 +162,8 @@ func getTimeSpentOnEachActivityMonthly() ([]MonthActivitySession, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(get_activity_sessions_for_current_year)
+	year := fmt.Sprintf("%d", time.Now().Year())
+	rows, err := db.Query(get_activity_sessions_for_current_year, year)
 	if err != nil {
 		return nil, err
 	}

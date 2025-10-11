@@ -19,7 +19,7 @@ func handleStartSession(ctx context.Context, c *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("New session for the activity %s has now started", activityName)
+	fmt.Printf("New session for the activity %s has now started\n", activityName)
 	return nil
 }
 
@@ -28,7 +28,7 @@ func handleEndSession(ctx context.Context, c *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Session for the activity %s has now ended", activityName)
+	fmt.Printf("Session for the activity %s has now ended\n", activityName)
 	return nil
 }
 
@@ -48,22 +48,22 @@ func handleTodaysSummary(ctx context.Context, c *cli.Command) error {
 		},
 	}
 
-	unknown := float32(24)
+	unTracked := float32(24)
 	for i, session := range todaysSessions {
 		r := []*simpletable.Cell{
 			{Align: simpletable.AlignRight, Text: fmt.Sprintf("%d", i+1)},
 			{Text: session.Activity},
-			{Align: simpletable.AlignRight, Text: fmt.Sprintf("$ %.2f", session.Duration)},
+			{Align: simpletable.AlignRight, Text: fmt.Sprintf("%.2f", session.Duration)},
 		}
 		table.Body.Cells = append(table.Body.Cells, r)
-		unknown -= session.Duration
+		unTracked -= session.Duration
 	}
 
 	// this is the time spent on untracked activities
 	r := []*simpletable.Cell{
 		{Align: simpletable.AlignRight, Text: fmt.Sprintf("%d", len(todaysSessions)+1)},
-		{Text: "unknown"},
-		{Align: simpletable.AlignRight, Text: fmt.Sprintf("$ %.2f", unknown)},
+		{Text: "unTracked"},
+		{Align: simpletable.AlignRight, Text: fmt.Sprintf("%.2f", unTracked)},
 	}
 	table.Body.Cells = append(table.Body.Cells, r)
 

@@ -1,8 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"time"
+	"context"
+	"log"
+	"os"
 
 	"github.com/urfave/cli/v3"
 )
@@ -45,10 +46,10 @@ func main() {
 		},
 	}
 
-	// err := app.Run(context.Background(), os.Args)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	fmt.Println(app.Name)
-	fmt.Println(time.Now().Year())
+	err := app.Run(context.Background(), os.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// fmt.Println(app.Name)
+	// fmt.Println(time.Now().Year())
 }
