@@ -121,7 +121,6 @@ func endActivitySession(id int) error {
 }
 
 func getTimeSpentOnEachActivityForToday() ([]ActivitySession, error) {
-	fmt.Println("getTimeSpentOnEachActivityForToday called")
 	db, err := getDBConnection()
 	if err != nil {
 		return nil, err
@@ -133,7 +132,6 @@ func getTimeSpentOnEachActivityForToday() ([]ActivitySession, error) {
 
 	rows, err := db.Query(get_activity_sessions_for_today, today)
 	if err != nil {
-		fmt.Println("today's sessions error in db.go line 133")
 		return nil, err
 	}
 	defer rows.Close()
@@ -147,7 +145,6 @@ func getTimeSpentOnEachActivityForToday() ([]ActivitySession, error) {
 			&activitySession.Duration,
 		)
 		if err != nil {
-			fmt.Printf("today's sessions error in db.go line 146 iteration: %d", i)
 			return nil, err
 		}
 		sessions = append(sessions, activitySession)
@@ -183,39 +180,6 @@ func getTimeSpentOnEachActivityMonthly() ([]MonthActivitySession, error) {
 	}
 
 	return monthsActivitiesSessions, nil
-	// monthlyActivitySessionsMap := make(map[string]*[12]float32)
-	// currentYear := time.Now().Year()
-	// for i := 1; i <= 12; i++ {
-	// 	rows, err := db.Query(get_activity_sessions_for_current_year, i, currentYear)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	defer rows.Close()
-
-	// 	for rows.Next() {
-	// 		var as ActivitySession
-	// 		err = rows.Scan(
-	// 			&as.Activity,
-	// 			&as.Duration,
-	// 		)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		if monthlyActivitySessionsMap[as.Activity] == nil {
-	// 			monthlyActivitySessionsMap[as.Activity] = &[12]float32{}
-	// 		}
-	// 		monthlyActivitySessionsMap[as.Activity][i-1] = as.Duration
-	// 	}
-	// }
-	// for k, v := range monthlyActivitySessionsMap {
-	// 	mas := MonthlyActivitySessions{
-	// 		Activity: k,
-	// 		Sessions: v[:],
-	// 	}
-	// 	monthlyActivitiesSessions = append(monthlyActivitiesSessions, mas)
-	// }
-
-	// return monthlyActivitiesSessions, nil
 }
 
 func getTimeSpentOnEachActivityOverTheYears() ([]YearActivitySession, error) {

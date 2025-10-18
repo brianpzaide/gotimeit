@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -28,18 +30,16 @@ func transformDataForTodaysSessions(todaysActivitiesSessions []ActivitySession) 
 // this function transforms the data coming from the database into something apex charts expects
 // ([{Activity: "programming", "Duration", Month: 1}, ...]) -> CurrentActivitySessions
 func transformDataForCurrentYearSessions(monthsActivitiesSessions []MonthActivitySession) CurrentYearActivitySessions {
-	fmt.Println("transformDataForCurrentYearSessions called")
-	fmt.Println("transformDataForCurrentYearSessions data from db")
-	for _, mas := range monthsActivitiesSessions {
-		fmt.Printf("month: %d, activity: %s, duration: %.2f\n", mas.Month, mas.Activity, mas.Duration)
-	}
+	// for _, mas := range monthsActivitiesSessions {
+	// 	fmt.Printf("month: %d, activity: %s, duration: %.2f\n", mas.Month, mas.Activity, mas.Duration)
+	// }
 
 	activitySessionsMap := make(map[string]*[12]float32)
 	for _, mas := range monthsActivitiesSessions {
 		if activitySessionsMap[mas.Activity] == nil {
 			activitySessionsMap[mas.Activity] = &[12]float32{}
 		}
-		activitySessionsMap[mas.Activity][mas.Month-1] = mas.Duration
+		activitySessionsMap[mas.Activity][mas.Month-1] = float32(math.Round(float64(mas.Duration)*100) / 100)
 	}
 	activitiesSessions := make([]ActivitySessions, 0)
 	for activityName, sessions := range activitySessionsMap {
@@ -48,12 +48,12 @@ func transformDataForCurrentYearSessions(monthsActivitiesSessions []MonthActivit
 			Sessions: sessions[:],
 		})
 	}
-	for _, as := range activitiesSessions {
-		fmt.Println(as.Activity)
-		for i, dur := range as.Sessions {
-			fmt.Printf("month: %d, duration: %.2f\n", i, dur)
-		}
-	}
+	// for _, as := range activitiesSessions {
+	// 	fmt.Println(as.Activity)
+	// 	for i, dur := range as.Sessions {
+	// 		fmt.Printf("month: %d, duration: %.2f\n", i, dur)
+	// 	}
+	// }
 	return CurrentYearActivitySessions{
 		Title:            fmt.Sprintf("Time spent on activities in %d", time.Now().Year()),
 		ActivitySessions: activitiesSessions,
@@ -113,7 +113,7 @@ func startSession(activityName string) error {
 		return nil
 	}
 
-	return fmt.Errorf(ErrStartSession, currSessionInfo.Activity)
+	return errors.New(ErrStartSession)
 }
 
 func endCurrentActiveSession() (string, error) {
@@ -139,11 +139,3 @@ func todaysSummary() ([]ActivitySession, error) {
 
 	return todaysSessions, nil
 }
-
-// func addErrMessageCookie(w http.ResponseWriter, msg string) {
-// 	http.SetCookie(w, &http.Cookie{
-// 		Name:  "flash",
-// 		Value: url.QueryEscape(msg),
-// 		Path:  "/",
-// 	})
-// }

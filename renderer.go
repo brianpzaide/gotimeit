@@ -21,14 +21,12 @@ func updateTemplateData(endSession bool) error {
 	if endSession {
 		todaysSummary, err := todaysSummary()
 		if err != nil {
-			fmt.Println("updateTemplateData - 24: error in getting today's summary")
 			return err
 		}
 		tmplData.TodaysData = transformDataForTodaysSessions(todaysSummary)
 	}
 	currentSession, err := getCurrentSession()
 	if err != nil {
-		fmt.Println("updateTemplateData - 31: error in getting current session")
 		return err
 	}
 	tmplDataEnvelope.ActiveSession = ""
@@ -60,41 +58,32 @@ func computeTemplateData() error {
 	// compute current year's monthly sessions
 	monthlyActivitySessionsDB, err := getTimeSpentOnEachActivityMonthly()
 	if err != nil {
-		fmt.Println("computeTemplateData Error: during computing current year's monthly sessions")
 		return err
 	}
-	fmt.Println("computeTemplateData: successfully computed current year's monthly sessions")
-	fmt.Println("transformDataForCurrentYearSessions data from db")
-	for _, mas := range monthlyActivitySessionsDB {
-		fmt.Printf("month: %d, activity: %s, duration: %.2f\n", mas.Month, mas.Activity, mas.Duration)
-	}
+	// for _, mas := range monthlyActivitySessionsDB {
+	// 	fmt.Printf("month: %d, activity: %s, duration: %.2f\n", mas.Month, mas.Activity, mas.Duration)
+	// }
 	monthlyActivitySessions := transformDataForCurrentYearSessions(monthlyActivitySessionsDB)
 	tmplData.CurrentYearMonthlyData = monthlyActivitySessions
 
 	// compute over the years
 	overTheYearsActivitiesSessionsDB, err := getTimeSpentOnEachActivityOverTheYears()
 	if err != nil {
-		fmt.Println("computeTemplateData Error: during computing over the years sessions")
 		return err
 	}
-	fmt.Println("computeTemplateData: successfully computed over the years sessions")
 	overTheYearsActivitiesSessions := transformDataForOverAllYearsSessions(overTheYearsActivitiesSessionsDB)
 	tmplData.OverTheYearsActivitySessions = overTheYearsActivitiesSessions
 
 	// compute today's sessions
 	err = updateTemplateData(true)
 	if err != nil {
-		fmt.Println("computeTemplateData Error: during computing today's sessions")
 		return err
 	}
-	fmt.Println("computeTemplateData: successfully computed today's sessions")
 
 	tmplDataJSON, err := writeJSON()
 	if err != nil {
-		fmt.Println("computeTemplateData Error: during marshalling templateData into JSON")
 		return fmt.Errorf("error marshalling template data to JSON")
 	}
-	fmt.Println("computeTemplateData: successfully marshalled templateData into JSON")
 	tmplDataEnvelope.TmplDataJSON = string(tmplDataJSON)
 	return nil
 }

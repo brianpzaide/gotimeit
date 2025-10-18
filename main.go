@@ -50,6 +50,4 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// fmt.Println(app.Name)
-	// fmt.Println(time.Now().Year())
 }

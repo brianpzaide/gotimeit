@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -32,28 +31,10 @@ func routes() http.Handler {
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	// // check for errors in the cookies if yes display a flash message
-	// var flash string
-	// if c, err := r.Cookie("flash"); err == nil {
-	// 	flash, _ = url.QueryUnescape(c.Value)
-
-	// 	// clearing the flash cookie
-	// 	http.SetCookie(w, &http.Cookie{
-	// 		Name:   "flash",
-	// 		Value:  "",
-	// 		Path:   "/",
-	// 		MaxAge: -1,
-	// 	})
-	// }
-	// // check if an error message is present in the flash
-	// if flash != "" {
-	// 	addFlashErrorMessageToTemplateData(flash)
-	// }
-
 	// render the home page
 	homepageBytes, err := renderTemplate()
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -69,7 +50,11 @@ func startSessionHandler(w http.ResponseWriter, r *http.Request) {
 	case "start":
 		err := startSession(activity)
 		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			if err.Error() == ErrStartSession {
+				log.Println(ErrStartSession)
+			} else {
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
 			return
 		}
 		err = updateTemplateData(false)
@@ -78,11 +63,6 @@ func startSessionHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Redirect(w, r, "/", http.StatusSeeOther)
-
-		// default:
-		// 	msg := "Unsupported action value. Valid values are: start and end."
-		// 	addErrMessageCookie(w, msg)
-		// 	http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
 
@@ -103,11 +83,6 @@ func endSessionHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Redirect(w, r, "/", http.StatusSeeOther)
-
-		// default:
-		// 	msg := "Unsupported action value. Valid values are: start, end."
-		// 	addErrMessageCookie(w, msg)
-		// 	http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
 

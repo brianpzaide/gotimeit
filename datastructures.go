@@ -2,7 +2,7 @@ package main
 
 import "errors"
 
-const ErrStartSession = "A session for %s is still active. Please end it before starting a new one"
+const ErrStartSession = "a session is already in progress. Please end the current session before starting a new one"
 
 var ErrEndSession = errors.New("no current session in progress")
 
