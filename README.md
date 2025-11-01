@@ -1,5 +1,3 @@
-[WIP]
-
 # Gotimeit
 
 Gotimeit is a simple CLI tool to track how much time you spend on activities like programming, writing, or any other skill you are working to improve. It helps you quantify your actual time spent on that activity.
