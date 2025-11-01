@@ -1,6 +1,8 @@
 package main
 
-import "errors"
+import (
+	"errors"
+)
 
 const ErrStartSession = "a session is already in progress. Please end the current session before starting a new one"
 
@@ -18,18 +20,9 @@ type ActivitiesSessionsToday struct {
 }
 
 type ActivitySession struct {
+	Date     string
 	Activity string
 	Duration float32
-}
-
-type MonthActivitySession struct {
-	ActivitySession
-	Month int
-}
-
-type YearActivitySession struct {
-	ActivitySession
-	Year int
 }
 
 type ActivitySessions struct {
@@ -39,40 +32,29 @@ type ActivitySessions struct {
 	Sessions []float32 `json:"data"`
 }
 
-type CurrentYearActivitySessions struct {
-	// represents the "title" of the stacked bar chart
-	Title string `json:"title"`
-	// represents name of the activity and the amount of time spent each month, for example. [
-	// {Activity:"programming", Sessions: [1,2,3,4,5,6,7,8,9,10,11,12]},
-	// {Activity:"writing", Sessions: [1,2,3,4,5,6,7,8,9,10,11,12]},
-	// ]
-	ActivitySessions []ActivitySessions `json:"series"`
+type DayActivities struct {
+	Date       string
+	Activities map[string]float32
+	TotalHours float32
+	Level      int
 }
 
-type Stroke struct {
-	Width []int    `json:"width"`
-	Curve []string `json:"curve"`
+type WeekActivities struct {
+	DailyActivities []*DayActivities
 }
 
-type OverAllYearsActivitySessions struct {
-	// represents years for example ["2020", "2021", "2022"], this name is chosen because the apex charts expects this name
-	Catagories []int `json:"catagories"`
-	// represents name of the activity and the amount of time spent each month, for example. [
-	// {Activity:"programming", Sessions: [1,2,3,4,5,6,7,8,9,10,11,12]},
-	// {Activity:"writing", Sessions: [1,2,3,4,5,6,7,8,9,10,11,12]},
-	// ]
-	ActivitySessions []ActivitySessions `json:"series"`
-	Stroke           Stroke             `json:"stroke"`
+type ActivityChartData struct {
+	// stores info for the entire year's (52/53 week) activities
+	WeeklyActivities []*WeekActivities
+	// for rendering the heading for the chart
+	Year string
+	// for displaying the months in the chart
+	MonthLabel map[string]int
 }
 
-type templateData struct {
-	TodaysData                   ActivitiesSessionsToday      `json:"todays_data"`
-	CurrentYearMonthlyData       CurrentYearActivitySessions  `json:"monthly_data"`
-	OverTheYearsActivitySessions OverAllYearsActivitySessions `json:"overall_data"`
-}
-
-type templateDataEnvelope struct {
-	ActiveSession     string
-	FlashErrorMessage string
-	TmplDataJSON      string
+type TemplateData struct {
+	// activity in current active session
+	ActiveSession                string
+	YearOptions                  []int
+	CurrentYearActivityChartData *ActivityChartData
 }

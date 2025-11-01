@@ -2,49 +2,50 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"text/template"
+	"time"
 )
 
 var (
-	t                *template.Template
-	tmplData         *templateData
-	tmplDataEnvelope *templateDataEnvelope
-	mu               *sync.Mutex = &sync.Mutex{}
+	t               *template.Template
+	tmplData        *TemplateData
+	mu              *sync.Mutex = &sync.Mutex{}
+	chartDataByYear map[int]*ActivityChartData
 )
 
-func updateTemplateData(endSession bool) error {
+func updateTemplateData(computeTodaysSummary bool) error {
 	mu.Lock()
 	defer mu.Unlock()
-	if endSession {
+	if computeTodaysSummary {
 		todaysSummary, err := todaysSummary()
 		if err != nil {
 			return err
 		}
-		tmplData.TodaysData = transformDataForTodaysSessions(todaysSummary)
+		activities := make(map[string]float32)
+		totalHours := float32(0)
+		for _, activitySession := range todaysSummary {
+			activities[activitySession.Activity] = activitySession.Duration
+			totalHours += activitySession.Duration
+		}
+		today := time.Now()
+		_, weekNumber := today.ISOWeek()
+		dayNumber := int(today.Weekday())
+		tmplData.CurrentYearActivityChartData.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Date = today.Format("2006-01-02")
+		tmplData.CurrentYearActivityChartData.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Activities = activities
+		tmplData.CurrentYearActivityChartData.WeeklyActivities[weekNumber].DailyActivities[dayNumber].TotalHours = totalHours
+		tmplData.CurrentYearActivityChartData.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Level = getLevel(totalHours)
 	}
 	currentSession, err := getCurrentSession()
 	if err != nil {
 		return err
 	}
-	tmplDataEnvelope.ActiveSession = ""
+	tmplData.ActiveSession = ""
 	if currentSession.Id != 0 {
-		tmplDataEnvelope.ActiveSession = currentSession.Activity
+		tmplData.ActiveSession = currentSession.Activity
 	}
-	tmplDataJSON, err := writeJSON()
-	if err != nil {
-		return fmt.Errorf("error marshalling template data to JSON")
-	}
-	tmplDataEnvelope.TmplDataJSON = string(tmplDataJSON)
 	return nil
-}
-
-func addFlashErrorMessageToTemplateData(msg string) {
-	mu.Lock()
-	defer mu.Unlock()
-	tmplDataEnvelope.FlashErrorMessage = msg
 }
 
 func computeTemplateData() error {
@@ -53,53 +54,35 @@ func computeTemplateData() error {
 		return err
 	}
 	t = tpl
-	tmplData, tmplDataEnvelope = &templateData{}, &templateDataEnvelope{}
-
-	// compute current year's monthly sessions
-	monthlyActivitySessionsDB, err := getTimeSpentOnEachActivityMonthly()
-	if err != nil {
-		return err
-	}
-	// for _, mas := range monthlyActivitySessionsDB {
-	// 	fmt.Printf("month: %d, activity: %s, duration: %.2f\n", mas.Month, mas.Activity, mas.Duration)
-	// }
-	monthlyActivitySessions := transformDataForCurrentYearSessions(monthlyActivitySessionsDB)
-	tmplData.CurrentYearMonthlyData = monthlyActivitySessions
-
-	// compute over the years
-	overTheYearsActivitiesSessionsDB, err := getTimeSpentOnEachActivityOverTheYears()
-	if err != nil {
-		return err
-	}
-	overTheYearsActivitiesSessions := transformDataForOverAllYearsSessions(overTheYearsActivitiesSessionsDB)
-	tmplData.OverTheYearsActivitySessions = overTheYearsActivitiesSessions
-
-	// compute today's sessions
-	err = updateTemplateData(true)
+	yearOptions, err := getYearsOptions()
 	if err != nil {
 		return err
 	}
 
-	tmplDataJSON, err := writeJSON()
-	if err != nil {
-		return fmt.Errorf("error marshalling template data to JSON")
+	tmplData = &TemplateData{
+		YearOptions: yearOptions,
 	}
-	tmplDataEnvelope.TmplDataJSON = string(tmplDataJSON)
+
+	// compute current years chart data
+	currentYear := fmt.Sprintf("%d", time.Now().Year())
+	err = updateTemplateData(false)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func writeJSON() ([]byte, error) {
-	js, err := json.MarshalIndent(tmplData, "", "\t")
-	if err != nil {
-		return nil, err
-	}
-	js = append(js, '\n')
-	return js, nil
+func computeChartDataForYear(year string) (*ActivityChartData, error) {
+
+	// given year compute the chart data for that year and return it
+
+	return nil, nil
 }
 
 func renderTemplate() ([]byte, error) {
 	buf := new(bytes.Buffer)
-	err := t.Execute(buf, tmplDataEnvelope)
+	err := t.Execute(buf, tmplData)
 	if err != nil {
 		return nil, err
 	}

@@ -34,18 +34,17 @@ const get_activity_sessions_for_today = `
 	WHERE date = ? AND stop_time is NOT NULL 
 	GROUP BY activity;`
 
-const get_activity_sessions_for_current_year = `
-	SELECT strftime('%m', date) AS month, activity, ROUND(SUM(stop_time-start_time)*1.0/3600, 2) as hours 
+const get_activity_sessions_everyday_for_current_year = `
+	SELECT date, activity, ROUND(SUM(stop_time-start_time)*1.0/3600, 2) as hours 
 	FROM activitysessions 
-	WHERE stop_time is NOT NULL AND strftime('%Y', date) = ? 
-	GROUP BY month, activity;`
+	WHERE strftime('%Y', date) = ? AND stop_time is NOT NULL
+	GROUP BY date, activity
+	ORDER BY date;`
 
-const get_activity_sessions_over_the_years = `
-	SELECT strftime('%Y', date) AS year, activity, ROUND(SUM(stop_time-start_time)*1.0/3600, 2) as hours 
-	FROM activitysessions 
-	WHERE stop_time is NOT NULL 
-	GROUP BY year, activity
-	ORDER BY year;`
+const get_oldest_and_latest_years = `
+	SELECT 
+    (SELECT strftime('%Y', date) FROM activitysessions ORDER BY id ASC  LIMIT 1) AS oldest_year,
+    (SELECT strftime('%Y', date) FROM activitysessions ORDER BY id DESC LIMIT 1) AS latest_year;`
 
 func getDBConnection() (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", DSN)
@@ -137,7 +136,6 @@ func getTimeSpentOnEachActivityForToday() ([]ActivitySession, error) {
 	defer rows.Close()
 	sessions := make([]ActivitySession, 0)
 
-	i := 0
 	for rows.Next() {
 		var activitySession ActivitySession
 		err = rows.Scan(
@@ -148,64 +146,69 @@ func getTimeSpentOnEachActivityForToday() ([]ActivitySession, error) {
 			return nil, err
 		}
 		sessions = append(sessions, activitySession)
-		i += 1
 	}
 	return sessions, nil
 }
 
-func getTimeSpentOnEachActivityMonthly() ([]MonthActivitySession, error) {
+func getTimeSpentOnEachActivityEverydayForCurrentYear() ([]ActivitySession, error) {
 	db, err := getDBConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
+
 	year := fmt.Sprintf("%d", time.Now().Year())
-	rows, err := db.Query(get_activity_sessions_for_current_year, year)
+
+	rows, err := db.Query(get_activity_sessions_everyday_for_current_year, year)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	monthsActivitiesSessions := make([]MonthActivitySession, 0)
+	sessions := make([]ActivitySession, 0)
+
 	for rows.Next() {
-		var monthActivitySession MonthActivitySession
+		var activitySession ActivitySession
 		err = rows.Scan(
-			&monthActivitySession.Month,
-			&monthActivitySession.Activity,
-			&monthActivitySession.Duration,
+			&activitySession.Date,
+			&activitySession.Activity,
+			&activitySession.Duration,
 		)
 		if err != nil {
 			return nil, err
 		}
-		monthsActivitiesSessions = append(monthsActivitiesSessions, monthActivitySession)
+		sessions = append(sessions, activitySession)
 	}
-
-	return monthsActivitiesSessions, nil
+	return sessions, nil
 }
 
-func getTimeSpentOnEachActivityOverTheYears() ([]YearActivitySession, error) {
+func getYearsOptions() ([]int, error) {
 	db, err := getDBConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(get_activity_sessions_over_the_years)
+
+	row := db.QueryRow(get_oldest_and_latest_years)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	yearsActivitiesSessions := make([]YearActivitySession, 0)
-	for rows.Next() {
-		var yearActivitySession YearActivitySession
-		err = rows.Scan(
-			&yearActivitySession.Year,
-			&yearActivitySession.Activity,
-			&yearActivitySession.Duration,
-		)
-		if err != nil {
-			return nil, err
-		}
-		yearsActivitiesSessions = append(yearsActivitiesSessions, yearActivitySession)
+
+	yearsOptions := make([]int, 0)
+	oldest, latest := 0, 0
+	err = row.Scan(
+		&oldest,
+		&latest,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if oldest == latest {
+		return []int{oldest}, nil
 	}
 
-	return yearsActivitiesSessions, nil
+	for i := oldest; i < latest; i++ {
+		yearsOptions = append(yearsOptions, i)
+	}
+
+	return yearsOptions, nil
 }
