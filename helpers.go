@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"text/template"
+	"time"
 )
 
 func startSession(activityName string) error {
@@ -46,6 +48,38 @@ func todaysSummary() ([]ActivitySession, error) {
 	return todaysSessions, nil
 }
 
+func computeTemplateData() error {
+	tpl, err := template.New("home").Parse(HOME_PAGE_HTML)
+	if err != nil {
+		return err
+	}
+	t = tpl
+	yearOptions, err := getYearsOptions()
+	if err != nil {
+		return err
+	}
+
+	tmplData = &TemplateData{
+		YearOptions: yearOptions,
+	}
+
+	// compute current years chart data
+	currentYear := fmt.Sprintf("%d", time.Now().Year())
+	err = updateTemplateData(false)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func computeChartDataForYear(year string) (*ActivityChartData, error) {
+
+	// given year compute the chart data for that year and return it
+
+	return nil, nil
+}
+
 func getLevel(k float32) int {
 	if k == float32(0) {
 		return 0
@@ -62,8 +96,10 @@ func getLevel(k float32) int {
 	return 4
 }
 
-func transformActiveSessionsToWeekActivitiesSlice([]ActivitySession) ([]*WeekActivities, error) {
+func transformActiveSessionsToWeekActivitiesSlice([]ActivitySession) []*WeekActivities {
 
-	return nil, nil
+	wa := make([]*WeekActivities, 0)
+
+	return wa
 
 }

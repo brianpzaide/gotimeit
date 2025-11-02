@@ -20,6 +20,7 @@ func routes() http.Handler {
 	router.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	router.HandleFunc("/", homeHandler)
+	router.HandleFunc("/summary", homeHandler)
 
 	router.Route("/sessions", func(r chi.Router) {
 		r.Get("/", endSessionHandler)
@@ -42,28 +43,29 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(homepageBytes)
 }
 
+func activityChartHandler(w http.ResponseWriter, r *http.Request) {
+	// parses the year from the query paramater
+	// computes the chart data for that year
+	// writes the rendered activity_chart.html to w
+}
+
 func startSessionHandler(w http.ResponseWriter, r *http.Request) {
 	activity := chi.URLParam(r, "activity_name")
-	query := r.URL.Query()
-	sessionAction := query.Get("action")
-	switch sessionAction {
-	case "start":
-		err := startSession(activity)
-		if err != nil {
-			if err.Error() == ErrStartSession {
-				log.Println(ErrStartSession)
-			} else {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			}
-			return
-		}
-		err = updateTemplateData(false)
-		if err != nil {
+	err := startSession(activity)
+	if err != nil {
+		if err.Error() == ErrStartSession {
+			log.Println(ErrStartSession)
+		} else {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
 		}
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
 	}
+	err = updateTemplateData(false)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func endSessionHandler(w http.ResponseWriter, r *http.Request) {

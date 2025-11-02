@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -34,7 +33,7 @@ const get_activity_sessions_for_today = `
 	WHERE date = ? AND stop_time is NOT NULL 
 	GROUP BY activity;`
 
-const get_activity_sessions_everyday_for_current_year = `
+const get_activity_sessions_everyday_for_year = `
 	SELECT date, activity, ROUND(SUM(stop_time-start_time)*1.0/3600, 2) as hours 
 	FROM activitysessions 
 	WHERE strftime('%Y', date) = ? AND stop_time is NOT NULL
@@ -150,16 +149,14 @@ func getTimeSpentOnEachActivityForToday() ([]ActivitySession, error) {
 	return sessions, nil
 }
 
-func getTimeSpentOnEachActivityEverydayForCurrentYear() ([]ActivitySession, error) {
+func getTimeSpentOnEachActivityEverydayForYear(year string) ([]ActivitySession, error) {
 	db, err := getDBConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
 
-	year := fmt.Sprintf("%d", time.Now().Year())
-
-	rows, err := db.Query(get_activity_sessions_everyday_for_current_year, year)
+	rows, err := db.Query(get_activity_sessions_everyday_for_year, year)
 	if err != nil {
 		return nil, err
 	}
