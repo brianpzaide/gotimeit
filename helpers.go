@@ -49,11 +49,11 @@ func todaysSummary() ([]ActivitySession, error) {
 }
 
 func computeTemplateData() error {
-	tpl, err := template.New("home").Parse(HOME_PAGE_HTML)
-	if err != nil {
-		return err
+	if tHomepage == nil {
+		tpl := template.Must(template.New("homepage").Funcs(funcMap).Parse(HOME_PAGE_HTML))
+		tHomepage = tpl
 	}
-	t = tpl
+
 	yearOptions, err := getYearsOptions()
 	if err != nil {
 		return err
@@ -65,10 +65,15 @@ func computeTemplateData() error {
 
 	// compute current years chart data
 	currentYear := fmt.Sprintf("%d", time.Now().Year())
-	err = updateTemplateData(false)
+	chartData, err := computeChartDataForYear(currentYear)
 	if err != nil {
 		return err
 	}
+	tmplData.CurrentYearActivityChartData = chartData
+	// err = updateTemplateData(false)
+	// if err != nil {
+	// 	return err
+	// }
 
 	return nil
 }

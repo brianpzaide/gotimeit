@@ -2,16 +2,23 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"sync"
 	"text/template"
 	"time"
 )
 
 var (
-	t               *template.Template
+	tHomepage       *template.Template
+	tChart          *template.Template
 	tmplData        *TemplateData
 	mu              *sync.Mutex = &sync.Mutex{}
-	chartDataByYear map[int]*ActivityChartData
+	chartDataByYear map[string]*ActivityChartData
+	funcMap         map[string]any = template.FuncMap{
+		"formatDate": func(t time.Time) string {
+			return t.Format("Jan 02, 2006")
+		},
+	}
 )
 
 func updateTemplateData(computeTodaysSummary bool) error {
@@ -47,13 +54,25 @@ func updateTemplateData(computeTodaysSummary bool) error {
 	return nil
 }
 
-func renderTemplate() ([]byte, error) {
+func renderHomepage() ([]byte, error) {
 	buf := new(bytes.Buffer)
-	err := t.Execute(buf, tmplData)
+	err := tHomepage.Execute(buf, tmplData)
 	if err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func renderChart(year string) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if cd, OK := chartDataByYear[year]; OK {
+		err := tChart.Execute(buf, cd)
+		if err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	}
+	return nil, fmt.Errorf("no data exists for %s", year)
 }
 
 const HOME_PAGE_HTML = `
@@ -229,7 +248,41 @@ const HOME_PAGE_HTML = `
   </form>
   
   <div style="display: flex; margin: auto; align-items: center; justify-content: center;">
-    <div id="activity-chart"></div>
+    <div id="activity-chart">
+      {{with .CurrentYearActivityChartData}}
+        <h2>Activity Tracker for {{ .Year }}</h2>
+        <div class="chart-container">
+          <div class="months">
+            {{range .MonthLabels}}
+              <span class="month-label" style="left: {{ .x }}px;">{{ .name }}</span>
+            {{end}}
+          </div>
+
+          <div class="contribution-chart">
+            {{range .WeeklyActivities}}
+              <div class="week">
+                {{range .DayActivities}}
+                  {{if .Date}}
+                    <div class="day level-{{ .Level }}">
+                      <div class="tooltip">
+                        <strong>{{ formatDate .Date }}</strong>
+                        <table>
+                          {{range $activity, $hours := .Activities}}
+                            <tr><td>{{ $activity }}</td><td>{{ $hours }} hrs</td></tr>
+                          {{end}}
+                        </table>
+                      </div>
+                    </div>
+                  {{ else }}
+                    <div class="day level-0"></div>
+                  {{ end }}
+                {{ end }}
+              </div>
+            {{ end }}
+          </div>
+        </div>
+      {{end}}
+    </div>
   </div>
 
   <div class="card">
@@ -244,36 +297,37 @@ const HOME_PAGE_HTML = `
 
 </body>
 `
+
 const ACTIVITY_CHART_HTML = `
-<h2>Activity Tracker for {{ year }}</h2>
+<h2>Activity Tracker for {{ .Year }}</h2>
 <div class="chart-container">
   <div class="months">
-    {% for month in month_labels %}
-      <span class="month-label" style="left: {{ month.x }}px;">{{ month.name }}</span>
-    {% endfor %}
+    {{range .MonthLabels}}
+      <span class="month-label" style="left: {{ .x }}px;">{{ .name }}</span>
+    {{end}}
   </div>
 
   <div class="contribution-chart">
-    {% for week in weeks %}
+    {{range .WeeklyActivities}}
       <div class="week">
-        {% for day in week %}
-          {% if day.date %}
-            <div class="day level-{{ day.level }}">
+        {{range .DayActivities}}
+          {{if .Date}}
+            <div class="day level-{{ .Level }}">
               <div class="tooltip">
-                <strong>{{ day.date.strftime('%b %d, %Y') }}</strong>
+                <strong>{{ formatDate .Date }}</strong>
                 <table>
-                  {% for activity, hours in day.activities.items() %}
-                    <tr><td>{{ activity }}</td><td>{{ hours }}h</td></tr>
-                  {% endfor %}
+                  {{range $activity, $hours := .Activities}}
+                    <tr><td>{{ $activity }}</td><td>{{ $hours }} hrs</td></tr>
+                  {{end}}
                 </table>
               </div>
             </div>
-          {% else %}
+          {{ else }}
             <div class="day level-0"></div>
-          {% endif %}
-        {% endfor %}
+          {{ end }}
+        {{ end }}
       </div>
-    {% endfor %}
+    {{ end }}
   </div>
 </div>
 `

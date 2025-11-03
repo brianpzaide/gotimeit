@@ -33,7 +33,7 @@ func routes() http.Handler {
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	// render the home page
-	homepageBytes, err := renderTemplate()
+	homepageBytes, err := renderHomepage()
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)

@@ -32,6 +32,8 @@ type ActivitySessions struct {
 	Sessions []float32 `json:"data"`
 }
 
+type MonthLabel map[string]int
+
 type DayActivities struct {
 	Date       string
 	Activities map[string]float32
@@ -48,8 +50,8 @@ type ActivityChartData struct {
 	WeeklyActivities []*WeekActivities
 	// for rendering the heading for the chart
 	Year string
-	// for displaying the months in the chart
-	MonthLabel map[string]int
+	// for displaying the months header in the chart
+	MonthLabels []MonthLabel
 }
 
 type TemplateData struct {
