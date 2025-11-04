@@ -32,7 +32,10 @@ type ActivitySessions struct {
 	Sessions []float32 `json:"data"`
 }
 
-type MonthLabel map[string]int
+type MonthLabel struct {
+	Name        string
+	PixelOffset int
+}
 
 type DayActivities struct {
 	Date       string

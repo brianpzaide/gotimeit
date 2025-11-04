@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const weekWidthPixel = 15
+
 var (
 	tHomepage       *template.Template
 	tChart          *template.Template
@@ -254,7 +256,7 @@ const HOME_PAGE_HTML = `
         <div class="chart-container">
           <div class="months">
             {{range .MonthLabels}}
-              <span class="month-label" style="left: {{ .x }}px;">{{ .name }}</span>
+              <span class="month-label" style="left: {{ .PixelOffset }}px;">{{ .Name }}</span>
             {{end}}
           </div>
 

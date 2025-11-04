@@ -101,10 +101,98 @@ func getLevel(k float32) int {
 	return 4
 }
 
-func transformActiveSessionsToWeekActivitiesSlice([]ActivitySession) []*WeekActivities {
+func transformActiveSessionsToActivityChartData(year int, activitySessions []ActivitySession) *ActivityChartData {
+	daMap := make(map[string]*DayActivities)
 
-	wa := make([]*WeekActivities, 0)
+	for _, as := range activitySessions {
+		var (
+			da *DayActivities
+			OK bool
+		)
+		da, OK = daMap[as.Date]
+		if !OK {
+			da = &DayActivities{
+				Date:       as.Date,
+				Activities: make(map[string]float32),
+				TotalHours: 0,
+				Level:      0,
+			}
+			daMap[as.Date] = da
+		}
+		da.Activities[as.Activity] = as.Duration
+		da.TotalHours += as.Duration
+		da.Level = getLevel(da.TotalHours)
+	}
 
-	return wa
+	days := make([]*DayActivities, 0)
 
+	start := time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(year, time.December, 31, 0, 0, 0, 0, time.UTC)
+	current := start
+
+	// padding first week to align Jan 1 at the top-left
+	for i := 0; i < int(start.Weekday()); i++ {
+		da := &DayActivities{
+			Date: "",
+		}
+		days = append(days, da)
+	}
+
+	// appending actual days of the year
+	for current.Before(end) || current.Equal(end) {
+		dateStr := current.Format("2006-01-02")
+		var (
+			da *DayActivities
+			OK bool
+		)
+		if da, OK = daMap[dateStr]; !OK {
+			da = &DayActivities{
+				Date: "",
+			}
+		}
+		days = append(days, da)
+	}
+
+	// padding last week to align Dec 31 at the bottom-right
+	for i := int(start.Weekday()); i < 7; i++ {
+		da := &DayActivities{
+			Date: "",
+		}
+		days = append(days, da)
+	}
+	// monthStarts and monthLabels are for displaying the month labels acurately as the chart header
+	monthStarts := make(map[string]bool)
+	monthLabels := make([]MonthLabel, 0)
+
+	week, weeks := make([]*DayActivities, 0), make([]*WeekActivities, 0)
+
+	for _, da := range days {
+		if len(week) == 7 {
+			wa := &WeekActivities{
+				DailyActivities: week,
+			}
+			weeks = append(weeks, wa)
+			week = make([]*DayActivities, 0)
+		}
+		week = append(week, da)
+		if da.Date != "" {
+			t, _ := time.Parse("2006-01-02", da.Date)
+			monthName := t.Month().String()
+			if _, OK := monthStarts[monthName]; !OK {
+				ml := MonthLabel{
+					Name:        monthName,
+					PixelOffset: weekWidthPixel * len(weeks),
+				}
+				monthLabels = append(monthLabels, ml)
+				monthStarts[monthName] = true
+			}
+		}
+	}
+
+	acd := &ActivityChartData{
+		Year:             fmt.Sprintf("%d", year),
+		WeeklyActivities: weeks,
+		MonthLabels:      monthLabels,
+	}
+	return acd
 }
