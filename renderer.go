@@ -11,48 +11,46 @@ import (
 const weekWidthPixel = 15
 
 var (
-	tHomepage       *template.Template
-	tChart          *template.Template
-	tmplData        *TemplateData
-	mu              *sync.Mutex = &sync.Mutex{}
-	chartDataByYear map[string]*ActivityChartData
-	funcMap         map[string]any = template.FuncMap{
+	tHomepage           *template.Template
+	tChart              *template.Template
+	tChart404           *template.Template
+	tStartSessionAction *template.Template
+	tEndSessionAction   *template.Template
+	tmplData            *TemplateData
+	mu                  *sync.Mutex                   = &sync.Mutex{}
+	chartDataByYear     map[string]*ActivityChartData = make(map[string]*ActivityChartData)
+	funcMap             map[string]any                = template.FuncMap{
 		"formatDate": func(t time.Time) string {
 			return t.Format("Jan 02, 2006")
 		},
 	}
 )
 
-func updateTemplateData(computeTodaysSummary bool) error {
+func updateChartDataForCurrentYear() error {
 	mu.Lock()
 	defer mu.Unlock()
-	if computeTodaysSummary {
-		todaysSummary, err := todaysSummary()
-		if err != nil {
-			return err
-		}
-		activities := make(map[string]float32)
-		totalHours := float32(0)
-		for _, activitySession := range todaysSummary {
-			activities[activitySession.Activity] = activitySession.Duration
-			totalHours += activitySession.Duration
-		}
-		today := time.Now()
-		_, weekNumber := today.ISOWeek()
-		dayNumber := int(today.Weekday())
-		tmplData.CurrentYearActivityChartData.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Date = today.Format("2006-01-02")
-		tmplData.CurrentYearActivityChartData.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Activities = activities
-		tmplData.CurrentYearActivityChartData.WeeklyActivities[weekNumber].DailyActivities[dayNumber].TotalHours = totalHours
-		tmplData.CurrentYearActivityChartData.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Level = getLevel(totalHours)
+	cdForCurrentYear, OK := chartDataByYear[fmt.Sprintf("%d", time.Now().Year())]
+	if !OK {
+		return nil
 	}
-	currentSession, err := getCurrentSession()
+
+	todaysSummary, err := todaysSummary()
 	if err != nil {
 		return err
 	}
-	tmplData.ActiveSession = ""
-	if currentSession.Id != 0 {
-		tmplData.ActiveSession = currentSession.Activity
+	activities := make(map[string]float32)
+	totalHours := float32(0)
+	for _, activitySession := range todaysSummary {
+		activities[activitySession.Activity] = activitySession.Duration
+		totalHours += activitySession.Duration
 	}
+	today := time.Now()
+	_, weekNumber := today.ISOWeek()
+	dayNumber := int(today.Weekday())
+	cdForCurrentYear.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Date = today.Format("2006-01-02")
+	cdForCurrentYear.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Activities = activities
+	cdForCurrentYear.WeeklyActivities[weekNumber].DailyActivities[dayNumber].TotalHours = totalHours
+	cdForCurrentYear.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Level = getLevel(totalHours)
 	return nil
 }
 
@@ -65,16 +63,50 @@ func renderHomepage() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func renderChart(year string) ([]byte, error) {
+func renderChart(acd *ActivityChartData) ([]byte, error) {
 	buf := new(bytes.Buffer)
-	if cd, OK := chartDataByYear[year]; OK {
-		err := tChart.Execute(buf, cd)
-		if err != nil {
-			return nil, err
-		}
-		return buf.Bytes(), nil
+	err := tChart.Execute(buf, acd)
+	if err != nil {
+		return nil, err
 	}
-	return nil, fmt.Errorf("no data exists for %s", year)
+	return buf.Bytes(), nil
+}
+
+func renderStartSessionAction() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	err := tStartSessionAction.Execute(buf, nil)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func renderEndSessionAction(activity string) ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	td := struct {
+		ActiveSession string
+	}{ActiveSession: activity}
+
+	err := tEndSessionAction.Execute(buf, td)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func renderNoDataAvailable(year string) ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	td := struct {
+		Year string
+	}{Year: year}
+
+	err := tStartSessionAction.Execute(buf, td)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 const HOME_PAGE_HTML = `
@@ -336,7 +368,7 @@ const ACTIVITY_CHART_HTML = `
 
 const START_ACTIVITY_HTML = `
 <div class="instruction">Session for the activity {{.ActiveSession}} is currently active. To start a new session click Stop first to end the current session</div>
-<form hx-get="/sessions?action=end" hx-trigger="submit" hx-target="#activity-chart">
+<form hx-get="/sessions/end" hx-trigger="submit" hx-target="#activity-chart">
   <button type="submit" style="background-color: red; width: 100%; margin-top: 9px;">
     Stop
   </button>
@@ -344,8 +376,11 @@ const START_ACTIVITY_HTML = `
 `
 const END_ACTIVITY_HTML = `
 <div class="instruction">Enter your activity name below and click Start to begin a new session.</div>
-<form hx-get="/sessions/{activity}" hx-trigger="submit" hx-target="#activity-chart">
+<form hx-get="/sessions/start/{activity}" hx-trigger="submit" hx-target="#activity-chart">
   <input type="text" name="activity" id="activity" placeholder="Enter activity name" required>
   <button type="submit">Start Session</button>
 </form>
+`
+const NO_ACTIVITY_DATA_FOUND_HTML = `
+<div class="instruction">No activity records found for the year {{.Year}}.</div>
 `

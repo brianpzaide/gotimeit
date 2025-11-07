@@ -21,7 +21,7 @@ const create_activity_session = `INSERT INTO activitysessions(date, activity, st
 
 const end_current_activity = `UPDATE activitysessions SET stop_time = ? where id = ?;`
 
-const get_current_activity_session = `SELECT id, activity 
+const get_current_activity_session = `SELECT id, activity, start_time 
 	FROM activitysessions 
 	where stop_time is NULL 
 	ORDER BY start_time DESC 
@@ -93,6 +93,7 @@ func getCurrentSession() (ActivitySessionInfo, error) {
 	err = db.QueryRow(get_current_activity_session).Scan(
 		&currentSessionInfo.Id,
 		&currentSessionInfo.Activity,
+		&currentSessionInfo.StartTime,
 	)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
@@ -186,9 +187,6 @@ func getYearsOptions() ([]int, error) {
 	defer db.Close()
 
 	row := db.QueryRow(get_oldest_and_latest_years)
-	if err != nil {
-		return nil, err
-	}
 
 	yearsOptions := make([]int, 0)
 	oldest, latest := 0, 0

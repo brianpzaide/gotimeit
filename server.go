@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -20,11 +22,11 @@ func routes() http.Handler {
 	router.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	router.HandleFunc("/", homeHandler)
-	router.HandleFunc("/summary", homeHandler)
+	router.HandleFunc("/summary", activityChartHandler)
 
 	router.Route("/sessions", func(r chi.Router) {
-		r.Get("/", endSessionHandler)
-		r.Get("/{activity_name}", startSessionHandler)
+		r.Get("/end", endSessionHandler)
+		r.Get("/start/{activity_name}", startSessionHandler)
 	})
 
 	return router
@@ -45,8 +47,28 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 
 func activityChartHandler(w http.ResponseWriter, r *http.Request) {
 	// parses the year from the query paramater
+	query := r.URL.Query()
+	year := strings.TrimSpace(query.Get("year"))
+	if year == "" {
+		year = fmt.Sprintf("%d", time.Now().Year())
+	}
 	// computes the chart data for that year
+	mu.Lock()
+	defer mu.Unlock()
+	chartData, OK := chartDataByYear[year]
+	if !OK {
+		// return html stating that no record found for the year {year}
+		return
+	}
 	// writes the rendered activity_chart.html to w
+	chartHTMLBytes, err := renderChart(chartData)
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(chartHTMLBytes)
 }
 
 func startSessionHandler(w http.ResponseWriter, r *http.Request) {
@@ -60,32 +82,33 @@ func startSessionHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	err = updateTemplateData(false)
+
+	endSessionHTMLBytes, err := renderEndSessionAction(activity)
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(endSessionHTMLBytes)
+}
+
+func endSessionHandler(w http.ResponseWriter, r *http.Request) {
+	_, err := endCurrentActiveSession()
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
+	// recompute and update the todays sessions data
 
-func endSessionHandler(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	sessionAction := query.Get("action")
-	switch sessionAction {
-	case "end":
-		_, err := endCurrentActiveSession()
-		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-		// recompute and update the todays sessions data
-		err = updateTemplateData(true)
-		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+	startSessionHTMLBytes, err := renderStartSessionAction()
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
 	}
+
+	w.Write(startSessionHTMLBytes)
 }
 
 func serve() error {

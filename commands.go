@@ -73,6 +73,9 @@ func handleTodaysSummary(ctx context.Context, c *cli.Command) error {
 }
 
 func handleSummary(ctx context.Context, c *cli.Command) error {
+	// initialize all the templates
+	// compute template data
+	// run the server
 	err := computeTemplateData()
 	if err != nil {
 		return fmt.Errorf("error computing the template data used for server side rendering: %v", err)

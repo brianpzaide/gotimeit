@@ -21,6 +21,18 @@ func startSession(activityName string) error {
 		return nil
 	}
 
+	st := time.Unix(currSessionInfo.StartTime, 0)
+	now := time.Now()
+
+	if !sameDay(now, st) {
+		endActivitySession(currSessionInfo.Id)
+		err = createActivitySession(activityName)
+		if err != nil {
+			return fmt.Errorf("error creating new session :%v", err)
+		}
+		return nil
+	}
+
 	return errors.New(ErrStartSession)
 }
 
@@ -105,11 +117,7 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 	daMap := make(map[string]*DayActivities)
 
 	for _, as := range activitySessions {
-		var (
-			da *DayActivities
-			OK bool
-		)
-		da, OK = daMap[as.Date]
+		da, OK := daMap[as.Date]
 		if !OK {
 			da = &DayActivities{
 				Date:       as.Date,
@@ -141,11 +149,8 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 	// appending actual days of the year
 	for current.Before(end) || current.Equal(end) {
 		dateStr := current.Format("2006-01-02")
-		var (
-			da *DayActivities
-			OK bool
-		)
-		if da, OK = daMap[dateStr]; !OK {
+		da, OK := daMap[dateStr]
+		if !OK {
 			da = &DayActivities{
 				Date: "",
 			}
@@ -195,4 +200,10 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 		MonthLabels:      monthLabels,
 	}
 	return acd
+}
+
+func sameDay(a, b time.Time) bool {
+	ay, am, ad := a.Date()
+	by, bm, bd := b.Date()
+	return ay == by && am == bm && ad == bd
 }
