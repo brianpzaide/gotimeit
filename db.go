@@ -19,7 +19,7 @@ const create_activitysessions_table = `CREATE TABLE IF NOT EXISTS activitysessio
 
 const create_activity_session = `INSERT INTO activitysessions(date, activity, start_time) VALUES(?, ?, ?);`
 
-const end_current_activity = `UPDATE activitysessions SET stop_time = ? where id = ?;`
+const end_current_activity = `UPDATE activitysessions SET stop_time = ? where id = ? RETURNING date;`
 
 const get_current_activity_session = `SELECT id, activity, start_time 
 	FROM activitysessions 

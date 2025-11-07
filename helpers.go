@@ -21,18 +21,6 @@ func startSession(activityName string) error {
 		return nil
 	}
 
-	st := time.Unix(currSessionInfo.StartTime, 0)
-	now := time.Now()
-
-	if !sameDay(now, st) {
-		endActivitySession(currSessionInfo.Id)
-		err = createActivitySession(activityName)
-		if err != nil {
-			return fmt.Errorf("error creating new session :%v", err)
-		}
-		return nil
-	}
-
 	return errors.New(ErrStartSession)
 }
 
@@ -48,7 +36,7 @@ func endCurrentActiveSession() (string, error) {
 		}
 		return currSessionInfo.Activity, nil
 	}
-	return "", ErrEndSession
+	return "", errors.New(ErrEndSession)
 }
 
 func todaysSummary() ([]ActivitySession, error) {
@@ -200,10 +188,4 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 		MonthLabels:      monthLabels,
 	}
 	return acd
-}
-
-func sameDay(a, b time.Time) bool {
-	ay, am, ad := a.Date()
-	by, bm, bd := b.Date()
-	return ay == by && am == bm && ad == bd
 }

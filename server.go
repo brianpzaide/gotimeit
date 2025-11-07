@@ -96,8 +96,12 @@ func startSessionHandler(w http.ResponseWriter, r *http.Request) {
 func endSessionHandler(w http.ResponseWriter, r *http.Request) {
 	_, err := endCurrentActiveSession()
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+		if err.Error() == ErrEndSession {
+			log.Println(ErrEndSession)
+		} else {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 	}
 	// recompute and update the todays sessions data
 

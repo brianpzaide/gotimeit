@@ -1,12 +1,8 @@
 package main
 
-import (
-	"errors"
-)
-
 const ErrStartSession = "a session is already in progress. Please end the current session before starting a new one"
 
-var ErrEndSession = errors.New("no current session in progress")
+var ErrEndSession = "no current session in progress"
 
 type ActivitySessionInfo struct {
 	Id        int
