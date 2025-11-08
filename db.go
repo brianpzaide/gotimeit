@@ -2,12 +2,52 @@ package main
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 const DSN = "./activitysessions.db"
+
+const start_session = `
+	WITH active_session AS (
+	    SELECT id, activity
+	    FROM activitysessions
+	    WHERE stop_time IS NULL
+	),
+	inserted AS (
+	    INSERT INTO activitysessions(date, activity, start_time)
+	    SELECT ?, ?, ?
+	    WHERE NOT EXISTS (SELECT 1 FROM active_session)
+	    RETURNING 1 AS result, '' AS activity
+	)
+	SELECT result, activity
+	FROM inserted
+	UNION ALL
+	SELECT -1 AS result, activity
+	FROM active_session
+	WHERE NOT EXISTS (SELECT 1 FROM inserted);`
+
+const end_session = `
+	WITH active_session AS (
+	    SELECT date, activity
+	    FROM activitysessions
+	    WHERE stop_time IS NULL
+	),
+	updated AS (
+	    UPDATE activitysessions
+		SET stop_time = ?
+	    WHERE EXISTS (SELECT 1 FROM active_session)
+	    RETURNING 1 AS result, date, activity
+	)
+	SELECT result, date, activity
+	FROM updated
+	UNION ALL
+	SELECT -1 AS result, '' AS date, '' AS activity
+	FROM active_session
+	WHERE NOT EXISTS (SELECT 1 FROM updated);`
 
 const create_activitysessions_table = `CREATE TABLE IF NOT EXISTS activitysessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,16 +56,6 @@ const create_activitysessions_table = `CREATE TABLE IF NOT EXISTS activitysessio
     start_time TIMESTAMP NOT NULL,
 	stop_time TIMESTAMP
 );`
-
-const create_activity_session = `INSERT INTO activitysessions(date, activity, start_time) VALUES(?, ?, ?);`
-
-const end_current_activity = `UPDATE activitysessions SET stop_time = ? where id = ? RETURNING date;`
-
-const get_current_activity_session = `SELECT id, activity, start_time 
-	FROM activitysessions 
-	where stop_time is NULL 
-	ORDER BY start_time DESC 
-	LIMIT 1;`
 
 const get_activity_sessions_for_today = `
 	SELECT activity, ROUND(SUM(stop_time-start_time)*1.0/3600, 2) as hours 
@@ -72,64 +102,83 @@ func New() error {
 	return nil
 }
 
-func createActivitySession(activity string) error {
+func createActivitySession(activity string) (string, error) {
 	db, err := getDBConnection()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer db.Close()
 	now := time.Now()
-	_, err = db.Exec(create_activity_session, now.Format("2006-01-02"), activity, now.Unix())
-	return err
-}
-
-func getCurrentSession() (ActivitySessionInfo, error) {
-	db, err := getDBConnection()
-	if err != nil {
-		return ActivitySessionInfo{}, err
-	}
-	defer db.Close()
-	var currentSessionInfo ActivitySessionInfo
-	err = db.QueryRow(get_current_activity_session).Scan(
-		&currentSessionInfo.Id,
-		&currentSessionInfo.Activity,
-		&currentSessionInfo.StartTime,
+	row := db.QueryRow(start_session, now.Format("2006-01-02"), activity, now.Unix())
+	isCreated, activeSessionActivity := 0, ""
+	err = row.Scan(
+		&isCreated,
+		&activeSessionActivity,
 	)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			return ActivitySessionInfo{}, nil
-		}
-		return ActivitySessionInfo{}, err
+		return "", err
 	}
+	if isCreated == -1 {
+		return activeSessionActivity, errors.New(ErrStartSession)
+	}
+	return "", nil
 
-	return currentSessionInfo, nil
 }
 
-func endActivitySession(id int) error {
+// func getCurrentSession() (ActivitySessionInfo, error) {
+// 	db, err := getDBConnection()
+// 	if err != nil {
+// 		return ActivitySessionInfo{}, err
+// 	}
+// 	defer db.Close()
+// 	var currentSessionInfo ActivitySessionInfo
+// 	err = db.QueryRow(get_current_activity_session).Scan(
+// 		&currentSessionInfo.Id,
+// 		&currentSessionInfo.Activity,
+// 		&currentSessionInfo.StartTime,
+// 	)
+// 	if err != nil {
+// 		if err.Error() == "sql: no rows in result set" {
+// 			return ActivitySessionInfo{}, nil
+// 		}
+// 		return ActivitySessionInfo{}, err
+// 	}
+
+// 	return currentSessionInfo, nil
+// }
+
+func endActivitySession() (string, string, error) {
 	db, err := getDBConnection()
 	if err != nil {
-		return err
+		return "", "", err
 	}
 	defer db.Close()
-	_, err = db.Exec(end_current_activity, time.Now().Unix(), id)
-	if err != nil {
-		return err
-	}
+	now := time.Now()
+	isStopped, date, activity := 0, "", ""
+	row := db.QueryRow(end_session, now.Unix())
 
-	return nil
+	err = row.Scan(
+		&isStopped,
+		&date,
+		&activity,
+	)
+	if err != nil {
+		return "", "", err
+	}
+	if isStopped == -1 {
+		return "", "", errors.New(ErrEndSession)
+	}
+	return date, activity, nil
 }
 
-func getTimeSpentOnEachActivityForToday() ([]ActivitySession, error) {
+func getTimeSpentOnEachActivityFor(date string) ([]ActivitySession, error) {
 	db, err := getDBConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
 
-	// sqlite understands ISO format yyyy-mm-dd
-	today := time.Now().Format("2006-01-02")
-
-	rows, err := db.Query(get_activity_sessions_for_today, today)
+	rows, err := db.Query(get_activity_sessions_for_today, date)
 	if err != nil {
 		return nil, err
 	}
@@ -179,31 +228,32 @@ func getTimeSpentOnEachActivityEverydayForYear(year string) ([]ActivitySession, 
 	return sessions, nil
 }
 
-func getYearsOptions() ([]int, error) {
+func setYearsOptions() error {
 	db, err := getDBConnection()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer db.Close()
 
 	row := db.QueryRow(get_oldest_and_latest_years)
 
-	yearsOptions := make([]int, 0)
 	oldest, latest := 0, 0
 	err = row.Scan(
 		&oldest,
 		&latest,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	yearOptions = make([]string, 0)
 	if oldest == latest {
-		return []int{oldest}, nil
+		yearOptions = append(yearOptions, fmt.Sprintf("%d", oldest))
+		return nil
 	}
 
 	for i := oldest; i < latest; i++ {
-		yearsOptions = append(yearsOptions, i)
+		yearOptions = append(yearOptions, fmt.Sprintf("%d", i))
 	}
 
-	return yearsOptions, nil
+	return nil
 }

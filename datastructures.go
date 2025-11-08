@@ -56,6 +56,6 @@ type ActivityChartData struct {
 type TemplateData struct {
 	// activity in current active session
 	ActiveSession                string
-	YearOptions                  []int
+	YearOptions                  []string
 	CurrentYearActivityChartData *ActivityChartData
 }

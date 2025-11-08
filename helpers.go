@@ -1,46 +1,38 @@
 package main
 
 import (
-	"errors"
 	"fmt"
+	"log"
+	"strconv"
 	"text/template"
 	"time"
 )
 
-func startSession(activityName string) error {
-	currSessionInfo, err := getCurrentSession()
+func startSession(activityName string) (string, error) {
+	activeSessionActivity, err := createActivitySession(activityName)
 	if err != nil {
-		return fmt.Errorf("error fetching currently active session info: %v", err)
-	}
-
-	if currSessionInfo.Id == 0 {
-		err = createActivitySession(activityName)
-		if err != nil {
-			return fmt.Errorf("error creating new session :%v", err)
+		if err.Error() == ErrStartSession {
+			return activeSessionActivity, err
 		}
-		return nil
+		return "", err
 	}
 
-	return errors.New(ErrStartSession)
+	return "", nil
 }
 
-func endCurrentActiveSession() (string, error) {
-	currSessionInfo, err := getCurrentSession()
+func endCurrentActiveSession() (string, string, error) {
+	date, activity, err := endActivitySession()
 	if err != nil {
-		return "", fmt.Errorf("error fetching currently active session info: %v", err)
+		return "", "", err
 	}
-	if currSessionInfo.Id != 0 {
-		err = endActivitySession(currSessionInfo.Id)
-		if err != nil {
-			return "", fmt.Errorf("error ending an active session :%v", err)
-		}
-		return currSessionInfo.Activity, nil
-	}
-	return "", errors.New(ErrEndSession)
+
+	return date, activity, nil
 }
 
 func todaysSummary() ([]ActivitySession, error) {
-	todaysSessions, err := getTimeSpentOnEachActivityForToday()
+	// sqlite understands ISO format yyyy-mm-dd
+	today := time.Now().Format("2006-01-02")
+	todaysSessions, err := getTimeSpentOnEachActivityFor(today)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching activity sessions for today: %v", err)
 	}
@@ -48,41 +40,37 @@ func todaysSummary() ([]ActivitySession, error) {
 	return todaysSessions, nil
 }
 
-func computeTemplateData() error {
-	if tHomepage == nil {
-		tpl := template.Must(template.New("homepage").Funcs(funcMap).Parse(HOME_PAGE_HTML))
-		tHomepage = tpl
-	}
-
-	yearOptions, err := getYearsOptions()
-	if err != nil {
-		return err
-	}
-
-	tmplData = &TemplateData{
+func computeTemplateData() (*TemplateData, error) {
+	tmplData := &TemplateData{
 		YearOptions: yearOptions,
 	}
-
-	// compute current years chart data
-	currentYear := fmt.Sprintf("%d", time.Now().Year())
-	chartData, err := computeChartDataForYear(currentYear)
-	if err != nil {
-		return err
+	mu.Lock()
+	defer mu.Unlock()
+	chartData, OK := chartDataByYear[currentYear]
+	if !OK {
+		cd, err := computeChartDataForYear(currentYear)
+		if err != nil {
+			return nil, err
+		}
+		chartDataByYear[currentYear] = cd
+		chartData = cd
 	}
 	tmplData.CurrentYearActivityChartData = chartData
-	// err = updateTemplateData(false)
-	// if err != nil {
-	// 	return err
-	// }
-
-	return nil
+	return tmplData, nil
 }
 
 func computeChartDataForYear(year string) (*ActivityChartData, error) {
+	as, err := getTimeSpentOnEachActivityEverydayForYear(year)
+	if err != nil {
+		return nil, err
+	}
+	y, err := strconv.Atoi(year)
+	if err != nil {
+		return nil, err
+	}
+	activityChartData := transformActiveSessionsToActivityChartData(y, as)
 
-	// given year compute the chart data for that year and return it
-
-	return nil, nil
+	return activityChartData, nil
 }
 
 func getLevel(k float32) int {
@@ -99,6 +87,48 @@ func getLevel(k float32) int {
 		return 3
 	}
 	return 4
+}
+
+func updateChartDataForCurrentYear(date string) error {
+	mu.Lock()
+	defer mu.Unlock()
+	cy := fmt.Sprintf("%d", time.Now().Year())
+	acd, OK := chartDataByYear[cy]
+	if !OK {
+		acd, err := computeChartDataForYear(cy)
+		if err != nil {
+			return err
+		}
+		chartDataByYear[cy] = acd
+		return nil
+	}
+
+	todaysSummary, err := getTimeSpentOnEachActivityFor(date)
+	if err != nil {
+		return err
+	}
+	activities := make(map[string]float32)
+	totalHours := float32(0)
+	for _, activitySession := range todaysSummary {
+		activities[activitySession.Activity] = activitySession.Duration
+		totalHours += activitySession.Duration
+	}
+
+	t, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, weekNumber := t.ISOWeek()
+	dayNumber := int(t.Weekday())
+
+	acd.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Date = date
+	acd.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Activities = activities
+	acd.WeeklyActivities[weekNumber].DailyActivities[dayNumber].TotalHours = totalHours
+	acd.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Level = getLevel(totalHours)
+
+	chartDataByYear[cy] = acd
+
+	return nil
 }
 
 func transformActiveSessionsToActivityChartData(year int, activitySessions []ActivitySession) *ActivityChartData {
@@ -188,4 +218,36 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 		MonthLabels:      monthLabels,
 	}
 	return acd
+}
+
+func initializeTemplates() {
+	// initialize all the homepage template
+	if tHomepage == nil {
+		tpl := template.Must(template.New("homepage").Funcs(funcMap).Parse(HOME_PAGE_HTML))
+		tHomepage = tpl
+	}
+
+	// initialize all the chart template
+	if tChart == nil {
+		tpl := template.Must(template.New("chart").Funcs(funcMap).Parse(ACTIVITY_CHART_HTML))
+		tChart = tpl
+	}
+
+	// initialize all the chart404 template
+	if tChart404 == nil {
+		tpl := template.Must(template.New("chart404").Parse(NO_ACTIVITY_DATA_FOUND_HTML))
+		tChart404 = tpl
+	}
+
+	// initialize all the end session template
+	if tEndSessionAction == nil {
+		tpl := template.Must(template.New("endSession").Parse(END_ACTIVITY_HTML))
+		tEndSessionAction = tpl
+	}
+
+	// initialize all the start session template
+	if tEndSessionAction == nil {
+		tpl := template.Must(template.New("startSession").Parse(START_ACTIVITY_HTML))
+		tStartSessionAction = tpl
+	}
 }

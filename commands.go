@@ -15,8 +15,11 @@ func handleStartSession(ctx context.Context, c *cli.Command) error {
 	if activityName == "" {
 		activityName = DEFAULT_ACTIVITY
 	}
-	err := startSession(activityName)
+	activeSessionActivity, err := startSession(activityName)
 	if err != nil {
+		if err.Error() == ErrStartSession {
+			fmt.Printf("Session for the activity %s is currently active. To start a new session end the current session first\n", activeSessionActivity)
+		}
 		return err
 	}
 	fmt.Printf("New session for the activity %s has now started\n", activityName)
@@ -24,11 +27,14 @@ func handleStartSession(ctx context.Context, c *cli.Command) error {
 }
 
 func handleEndSession(ctx context.Context, c *cli.Command) error {
-	activityName, err := endCurrentActiveSession()
+	_, activity, err := endCurrentActiveSession()
 	if err != nil {
+		if err.Error() == ErrEndSession {
+			fmt.Println(ErrEndSession)
+		}
 		return err
 	}
-	fmt.Printf("Session for the activity %s has now ended\n", activityName)
+	fmt.Printf("Session for the activity %s has now ended\n", activity)
 	return nil
 }
 
@@ -73,13 +79,14 @@ func handleTodaysSummary(ctx context.Context, c *cli.Command) error {
 }
 
 func handleSummary(ctx context.Context, c *cli.Command) error {
-	// initialize all the templates
-	// compute template data
-	// run the server
-	err := computeTemplateData()
+	initializeTemplates()
+
+	err := setYearsOptions()
 	if err != nil {
-		return fmt.Errorf("error computing the template data used for server side rendering: %v", err)
+		return err
 	}
+
+	// run the server
 	err = serve()
 	if err != nil {
 		return fmt.Errorf("error running the server: %v", err)

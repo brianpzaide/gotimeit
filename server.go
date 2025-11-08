@@ -34,8 +34,13 @@ func routes() http.Handler {
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	// render the home page
-	homepageBytes, err := renderHomepage()
+	tmplData, err := computeTemplateData()
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	homepageBytes, err := renderHomepage(tmplData)
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -52,12 +57,12 @@ func activityChartHandler(w http.ResponseWriter, r *http.Request) {
 	if year == "" {
 		year = fmt.Sprintf("%d", time.Now().Year())
 	}
-	// computes the chart data for that year
+
 	mu.Lock()
 	defer mu.Unlock()
 	chartData, OK := chartDataByYear[year]
 	if !OK {
-		// return html stating that no record found for the year {year}
+		// computes the chart data for that year and adds it to the "chartDataByYear" map
 		return
 	}
 	// writes the rendered activity_chart.html to w
@@ -73,10 +78,11 @@ func activityChartHandler(w http.ResponseWriter, r *http.Request) {
 
 func startSessionHandler(w http.ResponseWriter, r *http.Request) {
 	activity := chi.URLParam(r, "activity_name")
-	err := startSession(activity)
+	activeSessionActivity, err := startSession(activity)
 	if err != nil {
 		if err.Error() == ErrStartSession {
-			log.Println(ErrStartSession)
+			errString := fmt.Sprintf("a session with activity %s is already in progress. Please end the current session before starting a new one", activeSessionActivity)
+			http.Error(w, errString, http.StatusBadRequest)
 		} else {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
@@ -94,16 +100,19 @@ func startSessionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func endSessionHandler(w http.ResponseWriter, r *http.Request) {
-	_, err := endCurrentActiveSession()
+	date, _, err := endCurrentActiveSession()
 	if err != nil {
 		if err.Error() == ErrEndSession {
-			log.Println(ErrEndSession)
+			http.Error(w, ErrEndSession, http.StatusBadRequest)
 		} else {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
 	}
-	// recompute and update the todays sessions data
+
+	go func() {
+		updateChartDataForCurrentYear(date)
+	}()
 
 	startSessionHTMLBytes, err := renderStartSessionAction()
 	if err != nil {

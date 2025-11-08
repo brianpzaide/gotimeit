@@ -16,8 +16,9 @@ var (
 	tChart404           *template.Template
 	tStartSessionAction *template.Template
 	tEndSessionAction   *template.Template
-	tmplData            *TemplateData
-	mu                  *sync.Mutex                   = &sync.Mutex{}
+	mu                  *sync.Mutex = &sync.Mutex{}
+	currentYear         string      = fmt.Sprintf("%d", time.Now().Year())
+	yearOptions         []string
 	chartDataByYear     map[string]*ActivityChartData = make(map[string]*ActivityChartData)
 	funcMap             map[string]any                = template.FuncMap{
 		"formatDate": func(t time.Time) string {
@@ -26,35 +27,7 @@ var (
 	}
 )
 
-func updateChartDataForCurrentYear() error {
-	mu.Lock()
-	defer mu.Unlock()
-	cdForCurrentYear, OK := chartDataByYear[fmt.Sprintf("%d", time.Now().Year())]
-	if !OK {
-		return nil
-	}
-
-	todaysSummary, err := todaysSummary()
-	if err != nil {
-		return err
-	}
-	activities := make(map[string]float32)
-	totalHours := float32(0)
-	for _, activitySession := range todaysSummary {
-		activities[activitySession.Activity] = activitySession.Duration
-		totalHours += activitySession.Duration
-	}
-	today := time.Now()
-	_, weekNumber := today.ISOWeek()
-	dayNumber := int(today.Weekday())
-	cdForCurrentYear.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Date = today.Format("2006-01-02")
-	cdForCurrentYear.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Activities = activities
-	cdForCurrentYear.WeeklyActivities[weekNumber].DailyActivities[dayNumber].TotalHours = totalHours
-	cdForCurrentYear.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Level = getLevel(totalHours)
-	return nil
-}
-
-func renderHomepage() ([]byte, error) {
+func renderHomepage(tmplData *TemplateData) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	err := tHomepage.Execute(buf, tmplData)
 	if err != nil {
@@ -320,7 +293,7 @@ const HOME_PAGE_HTML = `
   </div>
 
   <div class="card">
-    <div id="user-action">
+    <div id="session-action">
       {{if .ActiveSession}} 
         
       {{else}} 
@@ -366,17 +339,17 @@ const ACTIVITY_CHART_HTML = `
 </div>
 `
 
-const START_ACTIVITY_HTML = `
+const END_ACTIVITY_HTML = `
 <div class="instruction">Session for the activity {{.ActiveSession}} is currently active. To start a new session click Stop first to end the current session</div>
-<form hx-get="/sessions/end" hx-trigger="submit" hx-target="#activity-chart">
+<form hx-get="/sessions/end" hx-trigger="submit" hx-target="#session-action">
   <button type="submit" style="background-color: red; width: 100%; margin-top: 9px;">
     Stop
   </button>
 </form>
 `
-const END_ACTIVITY_HTML = `
+const START_ACTIVITY_HTML = `
 <div class="instruction">Enter your activity name below and click Start to begin a new session.</div>
-<form hx-get="/sessions/start/{activity}" hx-trigger="submit" hx-target="#activity-chart">
+<form hx-get="/sessions/start/{activity}" hx-trigger="submit" hx-target="#session-action">
   <input type="text" name="activity" id="activity" placeholder="Enter activity name" required>
   <button type="submit">Start Session</button>
 </form>
