@@ -11,43 +11,10 @@ import (
 
 const DSN = "./activitysessions.db"
 
-const start_session = `
-	WITH active_session AS (
-	    SELECT id, activity
-	    FROM activitysessions
-	    WHERE stop_time IS NULL
-	),
-	inserted AS (
-	    INSERT INTO activitysessions(date, activity, start_time)
-	    SELECT ?, ?, ?
-	    WHERE NOT EXISTS (SELECT 1 FROM active_session)
-	    RETURNING 1 AS result, '' AS activity
-	)
-	SELECT result, activity
-	FROM inserted
-	UNION ALL
-	SELECT -1 AS result, activity
-	FROM active_session
-	WHERE NOT EXISTS (SELECT 1 FROM inserted);`
+const active_session = `SELECT activity FROM activitysessions WHERE stop_time IS NULL LIMIT 1`
+const start_session = `INSERT INTO activitysessions(date, activity, start_time) VALUES (?, ?, ?)`
 
-const end_session = `
-	WITH active_session AS (
-	    SELECT date, activity
-	    FROM activitysessions
-	    WHERE stop_time IS NULL
-	),
-	updated AS (
-	    UPDATE activitysessions
-		SET stop_time = ?
-	    WHERE EXISTS (SELECT 1 FROM active_session)
-	    RETURNING 1 AS result, date, activity
-	)
-	SELECT result, date, activity
-	FROM updated
-	UNION ALL
-	SELECT -1 AS result, '' AS date, '' AS activity
-	FROM active_session
-	WHERE NOT EXISTS (SELECT 1 FROM updated);`
+const end_session = `UPDATE activitysessions SET stop_time = ? WHERE stop_time IS NULL RETURNING date, activity`
 
 const create_activitysessions_table = `CREATE TABLE IF NOT EXISTS activitysessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,72 +70,83 @@ func New() error {
 }
 
 func createActivitySession(activity string) (string, error) {
+	inserted := true
 	db, err := getDBConnection()
 	if err != nil {
 		return "", err
 	}
 	defer db.Close()
-	now := time.Now()
-	row := db.QueryRow(start_session, now.Format("2006-01-02"), activity, now.Unix())
-	isCreated, activeSessionActivity := 0, ""
-	err = row.Scan(
-		&isCreated,
-		&activeSessionActivity,
-	)
+
+	tx, err := db.Begin()
 	if err != nil {
 		return "", err
 	}
-	if isCreated == -1 {
-		return activeSessionActivity, errors.New(ErrStartSession)
-	}
-	return "", nil
 
+	var existingActivity sql.NullString
+	err = tx.QueryRow(active_session).Scan(&existingActivity)
+
+	switch {
+	case err == sql.ErrNoRows:
+		now := time.Now()
+		_, err = tx.Exec(start_session, now.Format("2006-01-02"), activity, now.Unix())
+		if err != nil {
+			tx.Rollback()
+			return "", err
+		}
+
+	default:
+		inserted = false
+	}
+
+	if err := tx.Commit(); err != nil {
+		return "", err
+	}
+
+	if inserted {
+		return activity, nil
+	}
+
+	return existingActivity.String, errors.New(ErrStartSession)
 }
 
-// func getCurrentSession() (ActivitySessionInfo, error) {
-// 	db, err := getDBConnection()
-// 	if err != nil {
-// 		return ActivitySessionInfo{}, err
-// 	}
-// 	defer db.Close()
-// 	var currentSessionInfo ActivitySessionInfo
-// 	err = db.QueryRow(get_current_activity_session).Scan(
-// 		&currentSessionInfo.Id,
-// 		&currentSessionInfo.Activity,
-// 		&currentSessionInfo.StartTime,
-// 	)
-// 	if err != nil {
-// 		if err.Error() == "sql: no rows in result set" {
-// 			return ActivitySessionInfo{}, nil
-// 		}
-// 		return ActivitySessionInfo{}, err
-// 	}
-
-// 	return currentSessionInfo, nil
-// }
-
 func endActivitySession() (string, string, error) {
+	updated := true
 	db, err := getDBConnection()
 	if err != nil {
 		return "", "", err
 	}
 	defer db.Close()
-	now := time.Now()
-	isStopped, date, activity := 0, "", ""
-	row := db.QueryRow(end_session, now.Unix())
 
-	err = row.Scan(
-		&isStopped,
-		&date,
-		&activity,
-	)
+	tx, err := db.Begin()
 	if err != nil {
 		return "", "", err
 	}
-	if isStopped == -1 {
-		return "", "", errors.New(ErrEndSession)
+
+	var existingActivity, date, activity sql.NullString
+	err = tx.QueryRow(active_session).Scan(&existingActivity)
+
+	switch {
+	case err == sql.ErrNoRows:
+		updated = false
+
+	default:
+		now := time.Now()
+		row := tx.QueryRow(end_session, now.Unix())
+		row.Scan(&date, &activity)
+		if err != nil {
+			tx.Rollback()
+			return "", "", err
+		}
 	}
-	return date, activity, nil
+
+	if err := tx.Commit(); err != nil {
+		return "", "", err
+	}
+
+	if updated {
+		return date.String, activity.String, nil
+	}
+	return "", "", errors.New(ErrEndSession)
 }
 
 func getTimeSpentOnEachActivityFor(date string) ([]ActivitySession, error) {
@@ -200,12 +178,12 @@ func getTimeSpentOnEachActivityFor(date string) ([]ActivitySession, error) {
 }
 
 func getTimeSpentOnEachActivityEverydayForYear(year string) ([]ActivitySession, error) {
+	fmt.Println("getTimeSpentOnEachActivityEverydayForYear: started")
 	db, err := getDBConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
-
 	rows, err := db.Query(get_activity_sessions_everyday_for_year, year)
 	if err != nil {
 		return nil, err
@@ -225,6 +203,7 @@ func getTimeSpentOnEachActivityEverydayForYear(year string) ([]ActivitySession, 
 		}
 		sessions = append(sessions, activitySession)
 	}
+	fmt.Printf("getTimeSpentOnEachActivityEverydayForYear: number of fetched rows %d\n", len(sessions))
 	return sessions, nil
 }
 

@@ -21,8 +21,9 @@ var (
 	yearOptions         []string
 	chartDataByYear     map[string]*ActivityChartData = make(map[string]*ActivityChartData)
 	funcMap             map[string]any                = template.FuncMap{
-		"formatDate": func(t time.Time) string {
-			return t.Format("Jan 02, 2006")
+		"formatDate": func(t string) string {
+			tp, _ := time.Parse("2006-01-02", t)
+			return tp.Format("Jan 02, 2006")
 		},
 	}
 )
@@ -242,11 +243,12 @@ const HOME_PAGE_HTML = `
       display: block;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
 </head>
 
 <body>
   <form hx-get="/summary" hx-trigger="submit"> 
-    <select name="year" hx-target='#activity-chart' hx-indicator=".htmx-indicator"> 
+    <select name="year" hx-target="#activity-chart" hx-indicator=".htmx-indicator"> 
       {{range .YearOptions}}
         <option value="{{.}}">{{.}}</option>
       {{end}}
@@ -268,7 +270,7 @@ const HOME_PAGE_HTML = `
           <div class="contribution-chart">
             {{range .WeeklyActivities}}
               <div class="week">
-                {{range .DayActivities}}
+                {{range .DailyActivities}}
                   {{if .Date}}
                     <div class="day level-{{ .Level }}">
                       <div class="tooltip">
@@ -295,9 +297,18 @@ const HOME_PAGE_HTML = `
   <div class="card">
     <div id="session-action">
       {{if .ActiveSession}} 
-        
+        <div class="instruction">Session for the activity {{.ActiveSession}} is currently active. To start a new session click Stop first to end the current session</div>
+        <form hx-get="/sessions/end" hx-trigger="submit" hx-target="#session-action">
+          <button type="submit" style="background-color: red; width: 100%; margin-top: 9px;">
+            Stop
+          </button>
+        </form>
       {{else}} 
-        
+        <div class="instruction">Enter your activity name below and click Start to begin a new session.</div>
+        <form hx-get="/sessions/start/{activity}" hx-trigger="submit" hx-target="#session-action">
+          <input type="text" name="activity" id="activity" placeholder="Enter activity name" required>
+          <button type="submit">Start Session</button>
+        </form>
       {{end}}
     </div>
   </div>
@@ -310,14 +321,14 @@ const ACTIVITY_CHART_HTML = `
 <div class="chart-container">
   <div class="months">
     {{range .MonthLabels}}
-      <span class="month-label" style="left: {{ .x }}px;">{{ .name }}</span>
+      <span class="month-label" style="left: {{ .PixelOffset }}px;">{{ .Name }}</span>
     {{end}}
   </div>
 
   <div class="contribution-chart">
     {{range .WeeklyActivities}}
       <div class="week">
-        {{range .DayActivities}}
+        {{range .DailyActivities}}
           {{if .Date}}
             <div class="day level-{{ .Level }}">
               <div class="tooltip">

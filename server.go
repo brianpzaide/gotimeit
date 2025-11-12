@@ -21,8 +21,8 @@ func routes() http.Handler {
 	fs := http.FileServer(http.Dir("./static"))
 	router.Handle("/static/", http.StripPrefix("/static/", fs))
 
-	router.HandleFunc("/", homeHandler)
 	router.HandleFunc("/summary", activityChartHandler)
+	router.HandleFunc("/", homeHandler)
 
 	router.Route("/sessions", func(r chi.Router) {
 		r.Get("/end", endSessionHandler)
@@ -40,12 +40,15 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	fmt.Println("homeHandler: computing template data completed successfully")
 	homepageBytes, err := renderHomepage(tmplData)
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+
+	fmt.Println("homeHandler: rendering the homepage completed successfully")
 
 	w.Write(homepageBytes)
 }
@@ -54,6 +57,7 @@ func activityChartHandler(w http.ResponseWriter, r *http.Request) {
 	// parses the year from the query paramater
 	query := r.URL.Query()
 	year := strings.TrimSpace(query.Get("year"))
+	fmt.Printf("activityChartHandler: %s\n", year)
 	if year == "" {
 		year = fmt.Sprintf("%d", time.Now().Year())
 	}
@@ -62,8 +66,14 @@ func activityChartHandler(w http.ResponseWriter, r *http.Request) {
 	defer mu.Unlock()
 	chartData, OK := chartDataByYear[year]
 	if !OK {
-		// computes the chart data for that year and adds it to the "chartDataByYear" map
-		return
+		cd, err := computeChartDataForYear(year)
+		if err != nil {
+			log.Println(err.Error())
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		chartDataByYear[year] = cd
+		chartData = cd
 	}
 	// writes the rendered activity_chart.html to w
 	chartHTMLBytes, err := renderChart(chartData)

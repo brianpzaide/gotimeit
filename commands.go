@@ -80,11 +80,13 @@ func handleTodaysSummary(ctx context.Context, c *cli.Command) error {
 
 func handleSummary(ctx context.Context, c *cli.Command) error {
 	initializeTemplates()
+	fmt.Println("template initialization completed successfully")
 
 	err := setYearsOptions()
 	if err != nil {
 		return err
 	}
+	fmt.Println("setting of years options completed successfully")
 
 	// run the server
 	err = serve()

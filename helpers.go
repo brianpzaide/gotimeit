@@ -61,6 +61,7 @@ func computeTemplateData() (*TemplateData, error) {
 
 func computeChartDataForYear(year string) (*ActivityChartData, error) {
 	as, err := getTimeSpentOnEachActivityEverydayForYear(year)
+	fmt.Println("helpers: getTimeSpentOnEachActivityEverydayForYear completed successfully")
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +70,7 @@ func computeChartDataForYear(year string) (*ActivityChartData, error) {
 		return nil, err
 	}
 	activityChartData := transformActiveSessionsToActivityChartData(y, as)
+	fmt.Println("helpers: transformer executed successfully")
 
 	return activityChartData, nil
 }
@@ -132,6 +134,10 @@ func updateChartDataForCurrentYear(date string) error {
 }
 
 func transformActiveSessionsToActivityChartData(year int, activitySessions []ActivitySession) *ActivityChartData {
+	fmt.Println("transformer: starts")
+
+	fmt.Printf("transformer: number of activity sessions %d\n", len(activitySessions))
+
 	daMap := make(map[string]*DayActivities)
 
 	for _, as := range activitySessions {
@@ -150,6 +156,8 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 		da.Level = getLevel(da.TotalHours)
 	}
 
+	fmt.Println("transformer: daMap built successfully")
+
 	days := make([]*DayActivities, 0)
 
 	start := time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -164,17 +172,24 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 		days = append(days, da)
 	}
 
+	fmt.Println("transformer: start padding completed successfully")
+
 	// appending actual days of the year
 	for current.Before(end) || current.Equal(end) {
 		dateStr := current.Format("2006-01-02")
 		da, OK := daMap[dateStr]
 		if !OK {
 			da = &DayActivities{
-				Date: "",
+				Date:       dateStr,
+				TotalHours: 0,
+				Level:      getLevel(0),
 			}
 		}
 		days = append(days, da)
+		// increment the current by one day
+		current = current.Add(24 * time.Hour)
 	}
+	fmt.Println("transformer: array of DayActivities built successfully")
 
 	// padding last week to align Dec 31 at the bottom-right
 	for i := int(start.Weekday()); i < 7; i++ {
@@ -183,6 +198,8 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 		}
 		days = append(days, da)
 	}
+	fmt.Println("transformer: end padding completed successfully")
+
 	// monthStarts and monthLabels are for displaying the month labels acurately as the chart header
 	monthStarts := make(map[string]bool)
 	monthLabels := make([]MonthLabel, 0)
@@ -203,7 +220,7 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 			monthName := t.Month().String()
 			if _, OK := monthStarts[monthName]; !OK {
 				ml := MonthLabel{
-					Name:        monthName,
+					Name:        monthName[:3],
 					PixelOffset: weekWidthPixel * len(weeks),
 				}
 				monthLabels = append(monthLabels, ml)
@@ -211,6 +228,7 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 			}
 		}
 	}
+	fmt.Println("transformer: weeks built successfully")
 
 	acd := &ActivityChartData{
 		Year:             fmt.Sprintf("%d", year),
