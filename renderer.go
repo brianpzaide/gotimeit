@@ -92,48 +92,47 @@ const HOME_PAGE_HTML = `
   <title>GoTimeit</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: "Inter", system-ui, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
-      background: #f8f9fa;
-      margin-top: 20px;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 40px 10px;
+      color: #333;
     }
 
-    h2 { margin-bottom: 10px; }
+    h2 {
+      margin: 0 0 15px 0;
+      font-size: 1.4rem;
+      color: #222;
+      text-align: center;
+    }
 
-    .card {
-      background: #fff;
-      padding: 30px 25px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      width: 100%;
-      max-width: 500px;
+    /* Top form */
+    form {
       display: flex;
-      flex-direction: column;
-      margin: auto;
       align-items: center;
-      justify-content: center;
-      margin-bottom: 50px;
-      gap: 20px;
-    }
-
-    .input-row {
-      display: flex;
       gap: 10px;
+      background: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+      margin-bottom: 25px;
     }
 
-    input[type="text"] {
-      flex: 1;
-      padding: 10px 12px;
+    select {
+      padding: 8px 12px;
+      border-radius: 6px;
       border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 16px;
-      transition: border-color 0.3s;
+      font-size: 15px;
+      background-color: #fff;
+      cursor: pointer;
+      transition: border-color 0.2s;
     }
 
-    input[type="text"]:focus {
-      border-color: #a7a7a7;
+    select:focus {
+      border-color: #007bff;
       outline: none;
     }
 
@@ -141,9 +140,9 @@ const HOME_PAGE_HTML = `
       background-color: #007bff;
       color: white;
       border: none;
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-size: 16px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 15px;
       cursor: pointer;
       transition: background-color 0.3s;
     }
@@ -151,29 +150,24 @@ const HOME_PAGE_HTML = `
     button:hover {
       background-color: #0056b3;
     }
-    
-    .instruction {
-      font-size: 15px;
-      color: #444;
-      line-height: 1.4;
-    }
 
+    /* Chart container */
     .chart-container {
       display: flex;
       flex-direction: column;
       align-items: flex-start;
       background: #fff;
-      padding: 10px;
-      border-radius: 8px;
+      padding: 15px;
+      border-radius: 10px;
       border: 1px solid #ddd;
-      position: relative;
+      margin-bottom: 40px;
     }
 
     .months {
       display: flex;
       position: relative;
       margin-left: 20px;
-      margin-bottom: 5px;
+      margin-bottom: 6px;
       height: 15px;
       font-size: 12px;
       color: #666;
@@ -202,6 +196,14 @@ const HOME_PAGE_HTML = `
       border-radius: 2px;
       background-color: #ebedf0;
       position: relative;
+      transition: transform 0.1s ease;
+    }
+
+    .day:hover {
+      outline: 1px solid #555;
+      transform: scale(1.2);
+      cursor: pointer;
+      z-index: 2;
     }
 
     .level-0 { background-color: #d8ceceff; }
@@ -209,12 +211,6 @@ const HOME_PAGE_HTML = `
     .level-2 { background-color: #71c792ff; }
     .level-3 { background-color: #3c995bff; }
     .level-4 { background-color: #137033ff; }
-
-    .day:hover {
-      outline: 1px solid #555;
-      cursor: pointer;
-      z-index: 2;
-    }
 
     .tooltip {
       display: none;
@@ -242,19 +238,66 @@ const HOME_PAGE_HTML = `
     .day:hover .tooltip {
       display: block;
     }
+
+    /* Session card */
+    .card {
+      background: #fff;
+      padding: 25px 25px 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+    }
+
+    .instruction {
+      font-size: 15px;
+      color: #555;
+      margin-bottom: 15px;
+      line-height: 1.4;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    input[type="text"]:focus {
+      border-color: #007bff;
+      outline: none;
+    }
+
+    .stop-btn {
+      background-color: #dc3545;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .stop-btn:hover {
+      background-color: #b02a37;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
-</head>
+</head>	
 
 <body>
-  <form hx-get="/summary" hx-trigger="submit"> 
-    <select name="year" hx-target="#activity-chart" hx-indicator=".htmx-indicator"> 
-      {{range .YearOptions}}
-        <option value="{{.}}">{{.}}</option>
-      {{end}}
-    </select>
-    <button type="submit">Submit</button> 
-  </form>
+<form hx-get="/summary" hx-trigger="submit" hx-target="#activity-chart" hx-indicator=".htmx-indicator">
+  <select name="year"> 
+  	{{range .YearOptions}}
+		<option value="{{.}}">{{.}}</option>
+	{{end}}
+  </select>
+  <button type="submit">Submit</button> 
+ </form>
   
   <div style="display: flex; margin: auto; align-items: center; justify-content: center;">
     <div id="activity-chart">
