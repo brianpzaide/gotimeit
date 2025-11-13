@@ -26,7 +26,7 @@ func routes() http.Handler {
 
 	router.Route("/sessions", func(r chi.Router) {
 		r.Get("/end", endSessionHandler)
-		r.Get("/start/{activity_name}", startSessionHandler)
+		r.Get("/start", startSessionHandler)
 	})
 
 	return router
@@ -87,7 +87,8 @@ func activityChartHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func startSessionHandler(w http.ResponseWriter, r *http.Request) {
-	activity := chi.URLParam(r, "activity_name")
+	query := r.URL.Query()
+	activity := strings.TrimSpace(query.Get("activity"))
 	activeSessionActivity, err := startSession(activity)
 	if err != nil {
 		if err.Error() == ErrStartSession {
@@ -111,6 +112,7 @@ func startSessionHandler(w http.ResponseWriter, r *http.Request) {
 
 func endSessionHandler(w http.ResponseWriter, r *http.Request) {
 	date, _, err := endCurrentActiveSession()
+	fmt.Println("endSessionHandler: endCurrentActiveSession executed successfully")
 	if err != nil {
 		if err.Error() == ErrEndSession {
 			http.Error(w, ErrEndSession, http.StatusBadRequest)
@@ -120,10 +122,6 @@ func endSessionHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	go func() {
-		updateChartDataForCurrentYear(date)
-	}()
-
 	startSessionHTMLBytes, err := renderStartSessionAction()
 	if err != nil {
 		log.Println(err.Error())
@@ -132,6 +130,11 @@ func endSessionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(startSessionHTMLBytes)
+
+	go func() {
+		updateChartDataForCurrentYear(date)
+	}()
+
 }
 
 func serve() error {

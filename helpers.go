@@ -264,7 +264,7 @@ func initializeTemplates() {
 	}
 
 	// initialize all the start session template
-	if tEndSessionAction == nil {
+	if tStartSessionAction == nil {
 		tpl := template.Must(template.New("startSession").Parse(START_ACTIVITY_HTML))
 		tStartSessionAction = tpl
 	}

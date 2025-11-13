@@ -348,7 +348,7 @@ const HOME_PAGE_HTML = `
         </form>
       {{else}} 
         <div class="instruction">Enter your activity name below and click Start to begin a new session.</div>
-        <form hx-get="/sessions/start/{activity}" hx-trigger="submit" hx-target="#session-action">
+        <form hx-get="/sessions/start" hx-trigger="submit" hx-target="#session-action">
           <input type="text" name="activity" id="activity" placeholder="Enter activity name" required>
           <button type="submit">Start Session</button>
         </form>
@@ -403,7 +403,7 @@ const END_ACTIVITY_HTML = `
 `
 const START_ACTIVITY_HTML = `
 <div class="instruction">Enter your activity name below and click Start to begin a new session.</div>
-<form hx-get="/sessions/start/{activity}" hx-trigger="submit" hx-target="#session-action">
+<form hx-get="/sessions/start" hx-trigger="submit" hx-target="#session-action">
   <input type="text" name="activity" id="activity" placeholder="Enter activity name" required>
   <button type="submit">Start Session</button>
 </form>
