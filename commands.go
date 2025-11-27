@@ -79,10 +79,14 @@ func handleTodaysSummary(ctx context.Context, c *cli.Command) error {
 }
 
 func handleSummary(ctx context.Context, c *cli.Command) error {
+	err := initializeDB()
+	if err != nil {
+		return err
+	}
 	initializeTemplates()
 	fmt.Println("template initialization completed successfully")
 
-	err := setYearsOptions()
+	err = setYearsOptions()
 	if err != nil {
 		return err
 	}

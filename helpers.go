@@ -44,6 +44,11 @@ func computeTemplateData() (*TemplateData, error) {
 	tmplData := &TemplateData{
 		YearOptions: yearOptions,
 	}
+	as, err := getCurrentActiveSession()
+	if err != nil {
+		return nil, err
+	}
+	tmplData.ActiveSession = as
 	mu.Lock()
 	defer mu.Unlock()
 	chartData, OK := chartDataByYear[currentYear]

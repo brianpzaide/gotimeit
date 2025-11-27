@@ -69,6 +69,37 @@ func New() error {
 	return nil
 }
 
+func initializeDB() error {
+	db, err := getDBConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec(create_activitysessions_table)
+
+	return err
+}
+
+func getCurrentActiveSession() (string, error) {
+	db, err := getDBConnection()
+	if err != nil {
+		return "", err
+	}
+	defer db.Close()
+
+	var as sql.NullString
+	err = db.QueryRow(active_session).Scan(&as)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+		return "", err
+	}
+
+	return as.String, nil
+}
+
 func createActivitySession(activity string) (string, error) {
 	inserted := true
 	db, err := getDBConnection()
@@ -216,23 +247,33 @@ func setYearsOptions() error {
 
 	row := db.QueryRow(get_oldest_and_latest_years)
 
-	oldest, latest := 0, 0
+	var oldestn, latestn sql.NullInt64
+	var oldest, latest int
 	err = row.Scan(
-		&oldest,
-		&latest,
+		&oldestn,
+		&latestn,
 	)
 	if err != nil {
 		return err
 	}
+	oldestn.Scan(oldest)
+	latestn.Scan(latest)
+
 	yearOptions = make([]string, 0)
-	if oldest == latest {
-		yearOptions = append(yearOptions, fmt.Sprintf("%d", oldest))
+	if oldest == 0 {
+		yearOptions = append(yearOptions, fmt.Sprintf("%d", time.Now().Year()))
+		return nil
+	} else {
+		if oldest == latest {
+			yearOptions = append(yearOptions, fmt.Sprintf("%d", oldest))
+			return nil
+		}
+
+		for i := oldest; i <= latest; i++ {
+			yearOptions = append(yearOptions, fmt.Sprintf("%d", i))
+		}
+
 		return nil
 	}
 
-	for i := oldest; i < latest; i++ {
-		yearOptions = append(yearOptions, fmt.Sprintf("%d", i))
-	}
-
-	return nil
 }
