@@ -40,15 +40,12 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("homeHandler: computing template data completed successfully")
 	homepageBytes, err := renderHomepage(tmplData)
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Println("homeHandler: rendering the homepage completed successfully")
 
 	w.Write(homepageBytes)
 }
@@ -57,7 +54,7 @@ func activityChartHandler(w http.ResponseWriter, r *http.Request) {
 	// parses the year from the query paramater
 	query := r.URL.Query()
 	year := strings.TrimSpace(query.Get("year"))
-	fmt.Printf("activityChartHandler: %s\n", year)
+	// fmt.Printf("activityChartHandler: %s\n", year)
 	if year == "" {
 		year = fmt.Sprintf("%d", time.Now().Year())
 	}
@@ -112,7 +109,6 @@ func startSessionHandler(w http.ResponseWriter, r *http.Request) {
 
 func endSessionHandler(w http.ResponseWriter, r *http.Request) {
 	date, _, err := endCurrentActiveSession()
-	fmt.Println("endSessionHandler: endCurrentActiveSession executed successfully")
 	if err != nil {
 		if err.Error() == ErrEndSession {
 			http.Error(w, ErrEndSession, http.StatusBadRequest)

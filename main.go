@@ -8,6 +8,13 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+func init() {
+	err := initializeDB()
+	if err != nil {
+		log.Fatalln("failed o initialize database")
+	}
+}
+
 func main() {
 	app := &cli.Command{
 		Name:  "Time Tracking CLI",

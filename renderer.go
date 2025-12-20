@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"sync"
 	"text/template"
 	"time"
@@ -25,6 +26,7 @@ var (
 			tp, _ := time.Parse("2006-01-02", t)
 			return tp.Format("Jan 02, 2006")
 		},
+		"upper": strings.ToUpper,
 	}
 )
 
@@ -340,7 +342,7 @@ const HOME_PAGE_HTML = `
   <div class="card">
     <div id="session-action">
       {{if .ActiveSession}} 
-        <div class="instruction">Session for the activity {{.ActiveSession}} is currently active. To start a new session click Stop first to end the current session</div>
+        <div class="instruction">Session for the activity <strong>{{.ActiveSession | upper}}</strong> is currently active. To start a new session click Stop first to end the current session</div>
         <form hx-get="/sessions/end" hx-trigger="submit" hx-target="#session-action">
           <button type="submit" style="background-color: red; width: 100%; margin-top: 9px;">
             Stop
@@ -394,7 +396,7 @@ const ACTIVITY_CHART_HTML = `
 `
 
 const END_ACTIVITY_HTML = `
-<div class="instruction">Session for the activity {{.ActiveSession}} is currently active. To start a new session click Stop first to end the current session</div>
+<div class="instruction">Session for the activity <strong>{{.ActiveSession | upper}}</strong> is currently active. To start a new session click Stop first to end the current session</div>
 <form hx-get="/sessions/end" hx-trigger="submit" hx-target="#session-action">
   <button type="submit" style="background-color: red; width: 100%; margin-top: 9px;">
     Stop

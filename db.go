@@ -209,7 +209,6 @@ func getTimeSpentOnEachActivityFor(date string) ([]ActivitySession, error) {
 }
 
 func getTimeSpentOnEachActivityEverydayForYear(year string) ([]ActivitySession, error) {
-	fmt.Println("getTimeSpentOnEachActivityEverydayForYear: started")
 	db, err := getDBConnection()
 	if err != nil {
 		return nil, err
@@ -234,7 +233,6 @@ func getTimeSpentOnEachActivityEverydayForYear(year string) ([]ActivitySession, 
 		}
 		sessions = append(sessions, activitySession)
 	}
-	fmt.Printf("getTimeSpentOnEachActivityEverydayForYear: number of fetched rows %d\n", len(sessions))
 	return sessions, nil
 }
 
