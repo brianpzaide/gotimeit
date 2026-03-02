@@ -1,6 +1,6 @@
 # Gotimeit
 
-A CLI tool that tracks how much time I spend on programming and displays it in a GitHub-like activity chart, created mainly to **quatify/improve** the time I spend on programming. Can also be used fro tracking time spent on various projects everyday.
+A CLI tool that tracks how much time I spend on programming and displays it in a GitHub-like activity chart, created mainly to **quatify/improve** the time I spend on programming. Can also be used for tracking time spent on various projects each day.
 
 ### Commands
 
