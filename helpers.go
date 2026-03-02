@@ -8,6 +8,21 @@ import (
 	"time"
 )
 
+var months = map[time.Month]int{
+	time.January:   31,
+	time.February:  28,
+	time.March:     31,
+	time.April:     30,
+	time.May:       31,
+	time.June:      30,
+	time.July:      31,
+	time.August:    31,
+	time.September: 30,
+	time.October:   31,
+	time.November:  30,
+	time.December:  31,
+}
+
 func startSession(activityName string) (string, error) {
 	activeSessionActivity, err := createActivitySession(activityName)
 	if err != nil {
@@ -73,8 +88,9 @@ func computeChartDataForYear(year string) (*ActivityChartData, error) {
 	if err != nil {
 		return nil, err
 	}
+	//
 	activityChartData := transformActiveSessionsToActivityChartData(y, as)
-
+	//
 	return activityChartData, nil
 }
 
@@ -94,17 +110,27 @@ func getLevel(k float32) int {
 	return 4
 }
 
+func isLeapYear(year int) bool {
+	if year%4 == 0 {
+		if year%100 == 0 {
+			return year%400 == 0
+		}
+		return true
+	}
+	return false
+}
+
 func updateChartDataForCurrentYear(date string) error {
 	mu.Lock()
 	defer mu.Unlock()
 	cy := fmt.Sprintf("%d", time.Now().Year())
-	acd, OK := chartDataByYear[cy]
+	mwam, OK := chartDataByYear[cy]
 	if !OK {
-		acd, err := computeChartDataForYear(cy)
+		mwam, err := computeChartDataForYear(cy)
 		if err != nil {
 			return err
 		}
-		chartDataByYear[cy] = acd
+		chartDataByYear[cy] = mwam
 		return nil
 	}
 
@@ -123,15 +149,14 @@ func updateChartDataForCurrentYear(date string) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, weekNumber := t.ISOWeek()
-	dayNumber := int(t.Weekday())
+	month, dayNumber := t.Month(), t.Day()
 
-	acd.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Date = date
-	acd.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Activities = activities
-	acd.WeeklyActivities[weekNumber].DailyActivities[dayNumber].TotalHours = totalHours
-	acd.WeeklyActivities[weekNumber].DailyActivities[dayNumber].Level = getLevel(totalHours)
+	mwam.MonthDailyActivities[month].DA[dayNumber].Date = date
+	mwam.MonthDailyActivities[month].DA[dayNumber].Activities = activities
+	mwam.MonthDailyActivities[month].DA[dayNumber].TotalHours = totalHours
+	mwam.MonthDailyActivities[month].DA[dayNumber].Level = getLevel(totalHours)
 
-	chartDataByYear[cy] = acd
+	chartDataByYear[cy] = mwam
 
 	return nil
 }
@@ -155,79 +180,51 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 		da.Level = getLevel(da.TotalHours)
 	}
 
-	days := make([]*DayActivities, 0)
+	monthDailyActivitiesMap := make(map[time.Month]struct {
+		Offset int
+		DA     []*DayActivities
+	})
 
-	start := time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(year, time.December, 31, 0, 0, 0, 0, time.UTC)
-	current := start
-
-	// padding first week to align Jan 1 at the top-left
-	for i := 0; i < int(start.Weekday()); i++ {
-		da := &DayActivities{
-			Date: "",
+	for month, lastDay := range months {
+		days := make([]*DayActivities, 0)
+		ld := lastDay
+		if isLeapYear(year) {
+			ld += 1
 		}
-		days = append(days, da)
-	}
+		start := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+		end := time.Date(year, month, ld, 0, 0, 0, 0, time.UTC)
+		offset := int(start.Weekday())
+		current := start
 
-	// appending actual days of the year
-	for current.Before(end) || current.Equal(end) {
-		dateStr := current.Format("2006-01-02")
-		da, OK := daMap[dateStr]
-		if !OK {
-			da = &DayActivities{
-				Date:       dateStr,
-				TotalHours: 0,
-				Level:      getLevel(0),
-			}
-		}
-		days = append(days, da)
-		// increment the current by one day
-		current = current.Add(24 * time.Hour)
-	}
-
-	// padding last week to align Dec 31 at the bottom-right
-	for i := int(start.Weekday()); i < 7; i++ {
-		da := &DayActivities{
-			Date: "",
-		}
-		days = append(days, da)
-	}
-
-	// monthStarts and monthLabels are for displaying the month labels acurately as the chart header
-	monthStarts := make(map[string]bool)
-	monthLabels := make([]MonthLabel, 0)
-
-	week, weeks := make([]*DayActivities, 0), make([]*WeekActivities, 0)
-
-	for _, da := range days {
-		if len(week) == 7 {
-			wa := &WeekActivities{
-				DailyActivities: week,
-			}
-			weeks = append(weeks, wa)
-			week = make([]*DayActivities, 0)
-		}
-		week = append(week, da)
-		if da.Date != "" {
-			t, _ := time.Parse("2006-01-02", da.Date)
-			monthName := t.Month().String()
-			if _, OK := monthStarts[monthName]; !OK {
-				ml := MonthLabel{
-					Name:        monthName[:3],
-					PixelOffset: weekWidthPixel * len(weeks),
+		// appending actual days of the year
+		for current.Before(end) || current.Equal(end) {
+			dateStr := current.Format("2006-01-02")
+			da, OK := daMap[dateStr]
+			if !OK {
+				da = &DayActivities{
+					Date:       dateStr,
+					TotalHours: 0,
+					Level:      getLevel(0),
 				}
-				monthLabels = append(monthLabels, ml)
-				monthStarts[monthName] = true
 			}
+			days = append(days, da)
+			// increment the current by one day
+			current = current.Add(24 * time.Hour)
+		}
+
+		monthDailyActivitiesMap[month] = struct {
+			Offset int
+			DA     []*DayActivities
+		}{
+			Offset: offset,
+			DA:     days,
 		}
 	}
-
-	acd := &ActivityChartData{
-		Year:             fmt.Sprintf("%d", year),
-		WeeklyActivities: weeks,
-		MonthLabels:      monthLabels,
+	mwam := &ActivityChartData{
+		Year:                 fmt.Sprintf("%d", year),
+		MonthDailyActivities: monthDailyActivitiesMap,
 	}
-	return acd
+	return mwam
 }
 
 func initializeTemplates() {

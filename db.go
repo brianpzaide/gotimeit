@@ -254,8 +254,14 @@ func setYearsOptions() error {
 	if err != nil {
 		return err
 	}
-	oldestn.Scan(oldest)
-	latestn.Scan(latest)
+
+	if oldestn.Valid {
+		oldest = int(oldestn.Int64)
+	}
+
+	if latestn.Valid {
+		latest = int(latestn.Int64)
+	}
 
 	yearOptions = make([]string, 0)
 	if oldest == 0 {

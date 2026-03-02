@@ -27,6 +27,9 @@ var (
 			return tp.Format("Jan 02, 2006")
 		},
 		"upper": strings.ToUpper,
+		"rowStart": func(index, weekDay int) int {
+			return (index+weekDay)%7 + 1
+		},
 	}
 )
 
@@ -88,310 +91,279 @@ func renderNoDataAvailable(year string) ([]byte, error) {
 const HOME_PAGE_HTML = `
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GoTimeit</title>
-  <style>
-    body {
-      font-family: "Inter", system-ui, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background: #f3f4f6;
-      margin: 0;
-      padding: 40px 10px;
-      color: #333;
-    }
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoTimeit</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        background: #f5f7fa;
+        padding: 40px 20px;
+      }
 
-    h2 {
-      margin: 0 0 15px 0;
-      font-size: 1.4rem;
-      color: #222;
-      text-align: center;
-    }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+        align-items: center;
+      }
 
-    /* Top form */
-    form {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: #fff;
-      padding: 12px 20px;
-      border-radius: 10px;
-      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
-      margin-bottom: 25px;
-    }
+      .card {
+        background: #ffffff;
+        padding: 28px 32px;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        max-width: 1100px;
+        width: 100%;
+        text-align: center;    
+        display: flex;
+        flex-direction: column;
+        align-items: center;   
+      }
 
-    select {
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 15px;
-      background-color: #fff;
-      cursor: pointer;
-      transition: border-color 0.2s;
-    }
+      .card h2 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 20px;
+        font-weight: 600;
+        color: #222;
+      }
 
-    select:focus {
-      border-color: #007bff;
-      outline: none;
-    }
+      .heatmap {
+        display: flex;
+        gap: 22px;
+        justify-content: center; 
+        overflow-x: auto;
+        padding-bottom: 10px;
+      }
 
-    button {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-size: 15px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    
-    button:hover {
-      background-color: #0056b3;
-    }
+      .month {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
 
-    /* Chart container */
-    .chart-container {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      background: #fff;
-      padding: 15px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      margin-bottom: 40px;
-    }
+      .month-label {
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #444;
+      }
 
-    .months {
-      display: flex;
-      position: relative;
-      margin-left: 20px;
-      margin-bottom: 6px;
-      height: 15px;
-      font-size: 12px;
-      color: #666;
-    }
+      .month-grid {
+        display: grid;
+        grid-template-rows: repeat(7, 9px);
+        grid-auto-flow: column;
+        grid-auto-columns: 9px;
+        gap: 3px;
+      }
 
-    .month-label {
-      position: absolute;
-      top: 0;
-    }
+      .day {
+        width: 9px;
+        height: 9px;
+        border-radius: 2px;
+        cursor: pointer;
+      }
 
-    .contribution-chart {
-      display: flex;
-      flex-direction: row;
-      gap: 3px;
-    }
+      .level-0 { background-color: #ebedf0; }
+      .level-1 { background-color: #c6e48b; }
+      .level-2 { background-color: #7bc96f; }
+      .level-3 { background-color: #239a3b; }
+      .level-4 { background-color: #196127; }
 
-    .week {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
+      .tooltip {
+        position: fixed;
+        pointer-events: none;
+        background: #333;
+        color: white;
+        font-size: 11px;
+        padding: 6px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+        z-index: 9999;
+        display: none;
+        max-width: 220px;
+      }
 
-    .day {
-      width: 12px;
-      height: 12px;
-      border-radius: 2px;
-      background-color: #ebedf0;
-      position: relative;
-      transition: transform 0.1s ease;
-    }
+      .tooltip table {
+        border-collapse: collapse;
+      }
 
-    .day:hover {
-      outline: 1px solid #555;
-      transform: scale(1.2);
-      cursor: pointer;
-      z-index: 2;
-    }
+      .tooltip td {
+        padding: 2px 6px;
+      }
 
-    .level-0 { background-color: #d8ceceff; }
-    .level-1 { background-color: #a6d4b6ff; }
-    .level-2 { background-color: #71c792ff; }
-    .level-3 { background-color: #3c995bff; }
-    .level-4 { background-color: #137033ff; }
+      .day:hover .tooltip {
+        display: block;
+      }
 
-    .tooltip {
-      display: none;
-      position: absolute;
-      top: -5px;
-      left: 20px;
-      background: #333;
-      color: white;
-      font-size: 11px;
-      padding: 6px;
-      border-radius: 4px;
-      white-space: nowrap;
-      z-index: 10;
-      transform: translateY(-50%);
-    }
+      /* Session card */
+      .small-card {
+        max-width: 480px;
+      }
 
-    .tooltip table {
-      border-collapse: collapse;
-    }
+      .instruction {
+        font-size: 15px;
+        color: #555;
+        margin-bottom: 15px;
+        line-height: 1.4;
+      }
 
-    .tooltip td {
-      padding: 2px 6px;
-    }
+      .input-row {
+        display: flex;
+        gap: 10px;
+      }
 
-    .day:hover .tooltip {
-      display: block;
-    }
+      input[type="text"] {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+      }
 
-    /* Session card */
-    .card {
-      background: #fff;
-      padding: 25px 25px 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      width: 100%;
-      max-width: 480px;
-      text-align: center;
-    }
+      input[type="text"]:focus {
+        border-color: #007bff;
+        outline: none;
+      }
 
-    .instruction {
-      font-size: 15px;
-      color: #555;
-      margin-bottom: 15px;
-      line-height: 1.4;
-    }
+      .stop-btn {
+        background-color: #dc3545;
+        width: 100%;
+        margin-top: 10px;
+      }
 
-    .input-row {
-      display: flex;
-      gap: 10px;
-    }
+      .stop-btn:hover {
+        background-color: #b02a37;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
+  </head>	
 
-    input[type="text"] {
-      flex: 1;
-      padding: 10px 12px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 16px;
-      transition: border-color 0.3s;
-    }
-
-    input[type="text"]:focus {
-      border-color: #007bff;
-      outline: none;
-    }
-
-    .stop-btn {
-      background-color: #dc3545;
-      width: 100%;
-      margin-top: 10px;
-    }
-
-    .stop-btn:hover {
-      background-color: #b02a37;
-    }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
-</head>	
-
-<body>
-<form hx-get="/summary" hx-trigger="submit" hx-target="#activity-chart" hx-indicator=".htmx-indicator">
-  <select name="year"> 
-  	{{range .YearOptions}}
-		<option value="{{.}}">{{.}}</option>
-	{{end}}
-  </select>
-  <button type="submit">Submit</button> 
- </form>
-  
-  <div style="display: flex; margin: auto; align-items: center; justify-content: center;">
-    <div id="activity-chart">
-      {{with .CurrentYearActivityChartData}}
-        <h2>Activity Tracker for {{ .Year }}</h2>
-        <div class="chart-container">
-          <div class="months">
-            {{range .MonthLabels}}
-              <span class="month-label" style="left: {{ .PixelOffset }}px;">{{ .Name }}</span>
-            {{end}}
-          </div>
-
-          <div class="contribution-chart">
-            {{range .WeeklyActivities}}
-              <div class="week">
-                {{range .DailyActivities}}
-                  {{if .Date}}
-                    <div class="day level-{{ .Level }}">
-                      <div class="tooltip">
-                        <strong>{{ formatDate .Date }}</strong>
-                        <table>
-                          {{range $activity, $hours := .Activities}}
-                            <tr><td>{{ $activity }}</td><td>{{ $hours }} hrs</td></tr>
-                          {{end}}
-                        </table>
+  <body>
+    <div class="container">
+      <form hx-get="/summary" hx-trigger="submit" hx-target="#activity-chart">
+        <select name="year"> 
+        	{{range .YearOptions}}
+    	  	  <option value="{{.}}">{{.}}</option>
+    	    {{end}}
+        </select>
+        <button type="submit">Submit</button> 
+      </form>
+      <div class="card" id="activity-chart">
+        {{with .CurrentYearActivityChartData}}
+          <h2>Activity Tracker for {{ .Year }}</h2>
+          <div class="heatmap">
+            {{ range $month, $monthData := .MonthDailyActivities }}
+                <div class="month">
+                  <div class="month-label">{{ $month }}</div>
+                  <div class="month-grid">
+                    {{ range $index, $dayActivities := $monthData.DA }}
+                      <div class="day level-{{ $dayActivities.Level }}"
+                           data-tooltip='
+                             <strong>{{ formatDate $dayActivities.Date }}</strong><br>
+                             {{range $activity, $hours := $dayActivities.Activities}}
+                               {{$activity}}: {{$hours}} hrs<br>
+                             {{end}}
+                           ' style="grid-row-start: {{ rowStart $monthData.Offset  $index }};">
                       </div>
-                    </div>
-                  {{ else }}
-                    <div class="day level-0"></div>
-                  {{ end }}
-                {{ end }}
-              </div>
+                    {{ end }}
+                  </div>
+                </div>
             {{ end }}
           </div>
+        {{end}}
+      </div>
+
+      <div class="card small-card">
+        <div id="session-action">
+          {{if .ActiveSession}} 
+            <div class="instruction">Session for the activity <strong>{{.ActiveSession | upper}}</strong> is currently active. To start a new session click Stop first to end the current session</div>
+            <form hx-get="/sessions/end" hx-trigger="submit" hx-target="#session-action">
+              <button type="submit" style="background-color: red; width: 100%; margin-top: 9px;">
+                Stop
+              </button>
+            </form>
+          {{else}} 
+            <div class="instruction">Enter your activity name below and click Start to begin a new session.</div>
+            <form hx-get="/sessions/start" hx-trigger="submit" hx-target="#session-action">
+              <input type="text" name="activity" id="activity" placeholder="Enter activity name" required>
+              <button type="submit">Start Session</button>
+            </form>
+          {{end}}
         </div>
-      {{end}}
+      </div>
     </div>
-  </div>
 
-  <div class="card">
-    <div id="session-action">
-      {{if .ActiveSession}} 
-        <div class="instruction">Session for the activity <strong>{{.ActiveSession | upper}}</strong> is currently active. To start a new session click Stop first to end the current session</div>
-        <form hx-get="/sessions/end" hx-trigger="submit" hx-target="#session-action">
-          <button type="submit" style="background-color: red; width: 100%; margin-top: 9px;">
-            Stop
-          </button>
-        </form>
-      {{else}} 
-        <div class="instruction">Enter your activity name below and click Start to begin a new session.</div>
-        <form hx-get="/sessions/start" hx-trigger="submit" hx-target="#session-action">
-          <input type="text" name="activity" id="activity" placeholder="Enter activity name" required>
-          <button type="submit">Start Session</button>
-        </form>
-      {{end}}
-    </div>
-  </div>
+    <div id="tooltip" class="tooltip"></div>
 
-</body>
+    <script>
+      const tooltip = document.getElementById("tooltip");
+      
+      document.addEventListener("mouseover", function (e) {
+        const day = e.target.closest(".day");
+        if (!day) return;
+      
+        tooltip.innerHTML = day.dataset.tooltip;
+        tooltip.style.display = "block";
+      });
+
+      document.addEventListener("mousemove", function (e) {
+        if (tooltip.style.display !== "block") return;
+
+        const padding = 12;
+        let x = e.clientX + padding;
+        let y = e.clientY + padding;
+
+        if (x + tooltip.offsetWidth > window.innerWidth) {
+          x = e.clientX - tooltip.offsetWidth - padding;
+        }
+
+        if (y + tooltip.offsetHeight > window.innerHeight) {
+          y = e.clientY - tooltip.offsetHeight - padding;
+        }
+
+        tooltip.style.left = x + "px";
+        tooltip.style.top = y + "px";
+      });
+
+      document.addEventListener("mouseout", function (e) {
+        if (e.target.closest(".day")) {
+          tooltip.style.display = "none";
+        }
+      });
+    </script>
+
+
+  </body>
+</html>
 `
 
 const ACTIVITY_CHART_HTML = `
 <h2>Activity Tracker for {{ .Year }}</h2>
-<div class="chart-container">
-  <div class="months">
-    {{range .MonthLabels}}
-      <span class="month-label" style="left: {{ .PixelOffset }}px;">{{ .Name }}</span>
-    {{end}}
-  </div>
-
-  <div class="contribution-chart">
-    {{range .WeeklyActivities}}
-      <div class="week">
-        {{range .DailyActivities}}
-          {{if .Date}}
-            <div class="day level-{{ .Level }}">
-              <div class="tooltip">
-                <strong>{{ formatDate .Date }}</strong>
-                <table>
-                  {{range $activity, $hours := .Activities}}
-                    <tr><td>{{ $activity }}</td><td>{{ $hours }} hrs</td></tr>
-                  {{end}}
-                </table>
-              </div>
+<div class="heatmap">
+  {{ range $month, $monthData := .MonthDailyActivities }}
+      <div class="month">
+        <div class="month-label">{{ $month }}</div>
+        <div class="month-grid">
+          {{ range $index, $dayActivities := $monthData.DA }}
+            <div class="day level-{{ $dayActivities.Level }}"
+                 data-tooltip='
+                   <strong>{{ formatDate $dayActivities.Date }}</strong><br>
+                   {{range $activity, $hours := $dayActivities.Activities}}
+                     {{$activity}}: {{$hours}} hrs<br>
+                   {{end}}
+                 ' style="grid-row-start: {{ rowStart $monthData.Offset  $index }};">
             </div>
-          {{ else }}
-            <div class="day level-0"></div>
           {{ end }}
-        {{ end }}
+        </div>
       </div>
-    {{ end }}
-  </div>
+  {{ end }}
 </div>
 `
 

@@ -4,7 +4,7 @@ import random
 DEFAULT_DB_FILE_PATH = "./activitysessions.db"
 DEFAULT_SCHEMA_FILE_PATH = "./schema.sql"
 
-YEARS = [2020, 2021, 2022, 2023, 2024, 2025]
+YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026]
 DAYS_IN_MONTHS = [31,28,31,30,31,30,31,31,30,31,30,31]
 
 def init_database():
