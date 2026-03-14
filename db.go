@@ -142,6 +142,7 @@ func createActivitySession(activity string) (string, error) {
 
 func endActivitySession() (string, string, error) {
 	updated := true
+
 	db, err := getDBConnection()
 	if err != nil {
 		return "", "", err
@@ -153,19 +154,19 @@ func endActivitySession() (string, string, error) {
 		return "", "", err
 	}
 
+	defer tx.Rollback()
+
 	var existingActivity, date, activity sql.NullString
 	err = tx.QueryRow(active_session).Scan(&existingActivity)
 
-	switch {
-	case err == sql.ErrNoRows:
+	if err == sql.ErrNoRows {
 		updated = false
-
-	default:
+	} else if err != nil {
+		return "", "", err
+	} else {
 		now := time.Now()
-		row := tx.QueryRow(end_session, now.Unix())
-		row.Scan(&date, &activity)
+		err = tx.QueryRow(end_session, now.Unix()).Scan(&date, &activity)
 		if err != nil {
-			tx.Rollback()
 			return "", "", err
 		}
 	}
@@ -175,6 +176,9 @@ func endActivitySession() (string, string, error) {
 	}
 
 	if updated {
+		if !date.Valid || !activity.Valid {
+			return "", "", errors.New("unexpected NULL values")
+		}
 		return date.String, activity.String, nil
 	}
 	return "", "", errors.New(ErrEndSession)

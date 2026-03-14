@@ -149,7 +149,7 @@ func updateChartDataForCurrentYear(date string) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	month, dayNumber := t.Month(), t.Day()
+	month, dayNumber := t.Month(), t.Day()-1
 
 	mwam.MonthDailyActivities[month].DA[dayNumber].Date = date
 	mwam.MonthDailyActivities[month].DA[dayNumber].Activities = activities
