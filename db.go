@@ -42,6 +42,8 @@ const get_oldest_and_latest_years = `
     (SELECT strftime('%Y', date) FROM activitysessions ORDER BY id ASC  LIMIT 1) AS oldest_year,
     (SELECT strftime('%Y', date) FROM activitysessions ORDER BY id DESC LIMIT 1) AS latest_year;`
 
+const get_segments_for_date = `SELECT activity, start_time, stop_time FROM activitysessions WHERE stop_time IS NOT NULL AND date = ?;`
+
 func getDBConnection() (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", DSN)
 	if err != nil {
@@ -283,5 +285,36 @@ func setYearsOptions() error {
 
 		return nil
 	}
+}
 
+func getSegmentsFor(date string) ([]Segment, error) {
+	db, err := getDBConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	rows, err := db.Query(get_segments_for_date, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	segments := make([]Segment, 0)
+
+	for rows.Next() {
+		var segment Segment
+		var start, end time.Time
+		err = rows.Scan(
+			&segment.Activity,
+			&start,
+			&end,
+		)
+		if err != nil {
+			return nil, err
+		}
+		segment.Start = start.Unix()
+		segment.End = end.Unix()
+		segments = append(segments, segment)
+	}
+
+	return segments, nil
 }

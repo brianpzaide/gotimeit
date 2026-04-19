@@ -18,10 +18,8 @@ import (
 func routes() http.Handler {
 	router := chi.NewRouter()
 
-	fs := http.FileServer(http.Dir("./static"))
-	router.Handle("/static/", http.StripPrefix("/static/", fs))
-
 	router.HandleFunc("/summary", activityChartHandler)
+	router.HandleFunc("/segments", segmentsHandler)
 	router.HandleFunc("/", homeHandler)
 
 	router.Route("/sessions", func(r chi.Router) {
@@ -131,6 +129,18 @@ func endSessionHandler(w http.ResponseWriter, r *http.Request) {
 		updateChartDataForCurrentYear(date)
 	}()
 
+}
+
+func segmentsHandler(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	date := strings.TrimSpace(query.Get("date"))
+	segments, err := getSegmentsFor(date)
+	if err != nil {
+		fmt.Println("error fetching segments from db", err)
+		return
+	}
+	data := envelope{"Segments": segments}
+	writeJSON(w, http.StatusOK, data, nil)
 }
 
 func serve() error {

@@ -74,19 +74,19 @@ func renderEndSessionAction(activity string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func renderNoDataAvailable(year string) ([]byte, error) {
-	buf := new(bytes.Buffer)
+// func renderNoDataAvailable(year string) ([]byte, error) {
+// 	buf := new(bytes.Buffer)
 
-	td := struct {
-		Year string
-	}{Year: year}
+// 	td := struct {
+// 		Year string
+// 	}{Year: year}
 
-	err := tStartSessionAction.Execute(buf, td)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
+// 	err := tStartSessionAction.Execute(buf, td)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return buf.Bytes(), nil
+// }
 
 const HOME_PAGE_HTML = `
 <!DOCTYPE html>
@@ -103,6 +103,91 @@ const HOME_PAGE_HTML = `
         padding: 40px 20px;
       }
 
+      .segmentcard {
+        max-width: 700px;
+        margin: 40px auto;
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px 24px 28px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      }
+
+      .segmentcard-header {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+
+      #datePicker {
+        padding: 8px 12px;
+        font-size: 14px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        background: #f9fafb;
+        cursor: pointer;
+      }
+
+      .segmentcard-body {
+        padding: 10px 0;
+      }
+
+      .bar {
+        position: relative;
+        width: 100%;
+        height: 24px;
+        background: #6a6a6a;
+        border-radius: 12px;
+        overflow: visible;
+      }
+
+      .segment {
+        position: absolute;
+        min-width: 2px;
+        top: 0;
+        height: 100%;
+        background: #4caf50;
+        z-index: 1;
+      }
+
+      .markers {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      .marker {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        width: 1px;
+        background: rgba(0,0,0,0.2);
+      }
+
+      .marker.major {
+        background: rgba(0,0,0,0.4);
+        width: 2px;
+      }
+
+      .segmenttooltip-global {
+        position: fixed;
+        top: 0;
+        left: 0;
+        background: #333;
+        color: #fff;
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 6px;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      }
+
+      /* css for the heat map component*/
       .container {
         max-width: 1100px;
         margin: 0 auto;
@@ -201,7 +286,7 @@ const HOME_PAGE_HTML = `
         display: block;
       }
 
-      /* Session card */
+      /* css for the session card(start/stop) */
       .small-card {
         max-width: 480px;
       }
@@ -246,16 +331,30 @@ const HOME_PAGE_HTML = `
   </head>	
 
   <body>
+    <div id="segmenttooltip" class="segmenttooltip-global"></div>
+
+    <div class="segmentcard">
+      <div class="segmentcard-header">
+        <input type="date" id="datePicker" />
+      </div>
+    
+      <div class="segmanetcard-body">
+        <div class="bar">
+          <div class="markers" id="markers"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="container">
-      <form hx-get="/summary" hx-trigger="submit" hx-target="#activity-chart">
-        <select name="year"> 
-        	{{range .YearOptions}}
-    	  	  <option value="{{.}}">{{.}}</option>
-    	    {{end}}
-        </select>
-        <button type="submit">Submit</button> 
-      </form>
       <div class="card" id="activity-chart">
+        <form hx-get="/summary" hx-trigger="submit" hx-target="#activity-chart">
+          <select name="year"> 
+          	{{range .CurrentYearActivityChartData.YearOptions}}
+    	    	  <option value="{{.}}">{{.}}</option>
+    	      {{end}}
+          </select>
+          <button type="submit">Submit</button> 
+        </form>
         {{with .CurrentYearActivityChartData}}
           <h2>Activity Tracker for {{ .Year }}</h2>
           <div class="heatmap">
@@ -303,7 +402,136 @@ const HOME_PAGE_HTML = `
     <div id="tooltip" class="tooltip"></div>
 
     <script>
-      const tooltip = document.getElementById("tooltip");
+
+
+      // ****************************************** js code for the activity segments section *****************************************************
+      
+        const bar = document.querySelector(".bar");
+        const markersContainer = document.getElementById("markers");
+        const datePicker = document.getElementById("datePicker");
+
+        const today = new Date().toISOString().split("T")[0];
+        datePicker.value = today;
+
+        for (let hour = 0; hour <= 24; hour++) {
+          const marker = document.createElement("div");
+          marker.className = "marker";
+          if (hour % 6 === 0) marker.classList.add("major");
+          marker.style.left = (hour / 24) * 100 + "%";
+          markersContainer.appendChild(marker);
+        }
+
+        datePicker.addEventListener("change", (e) => {
+          updateView(e.target.value);
+        }); 
+
+        async function updateView(date) {
+            const segments = await fetchSegments(date);
+            const dayStart = getDayStart(date);
+        
+            renderSegments(segments, dayStart);
+        }
+        
+        async function fetchSegments(date) {
+          const url = "/segments?date=" + date;
+          var res = await fetch(url);
+          res = await res.json();
+          segments = res.Segments;
+          return segments
+        }
+
+        function getDayStart(dateStr) {
+          const d = new Date(dateStr);
+          d.setHours(0, 0, 0, 0);
+          return Math.floor(d.getTime() / 1000);
+        }
+
+        // initial load
+        updateView(today);
+
+        function renderSegments(segments, dayStart) {
+          clearSegments();
+        
+          segments.forEach(({ start, end, activity }) => {
+            const clampedStart = Math.max(start, dayStart);
+            const clampedEnd = Math.min(end, dayStart + 86400);
+        
+            const width = ((clampedEnd - clampedStart) / 86400) * 100;
+            if (width <= 0) {
+                console.log("invalid so skipping. Segment width is less than 0")
+            }
+        
+            const left = ((clampedStart - dayStart) / 86400) * 100;
+            const duration = clampedEnd - clampedStart;
+        
+            const segment = document.createElement("div");
+            segment.className = "segment";
+            segment.style.left = left + "%";
+            segment.style.width = width + "%";
+    
+            var start_date = new Date(start * 1000);
+            var start_hours = start_date.getHours();
+            var start_minutes = "0" + start_date.getMinutes();
+            var start_time = start_hours + ':' + start_minutes.substr(-2);
+
+            var end_date = new Date(end * 1000);
+            var end_hours = end_date.getHours();
+            var end_minutes = "0" + end_date.getMinutes();
+            var end_time = end_hours + ':' + end_minutes.substr(-2);
+
+            const content = start_time + " - " + end_time + "<br>" + activity + ": " +  formatDuration(duration);
+        
+            segment.addEventListener("mousemove", (e) => {
+              showTooltip(e, content);
+            });
+        
+            segment.addEventListener("mouseleave", hideTooltip);
+        
+            bar.appendChild(segment);
+          });
+        }
+      
+        function clearSegments() {
+          bar.querySelectorAll(".segment").forEach(el => el.remove());
+        }
+
+        function formatDuration(seconds) {
+          const h = Math.floor(seconds / 3600);
+          const m = Math.floor((seconds % 3600) / 60);
+          if (h && m) return h + " hr(s)" + " & " + m + " min(s)";
+          if (h) return h + " hr(s)";
+          return m + " min(s)";
+        }        
+ 
+        function showTooltip(e, content) {
+          segmenttooltip.innerHTML = content;
+          segmenttooltip.style.opacity = 1;
+          positionTooltip(e);
+        }
+
+        function hideTooltip() {
+          segmenttooltip.style.opacity = 0;
+        }
+
+        function positionTooltip(e) {
+          const offset = 10;
+            let x = e.clientX + offset;
+            let y = e.clientY + offset;
+            const rect = segmenttooltip.getBoundingClientRect();
+            // flip horizontally if overflowing right
+            if (x + rect.width > window.innerWidth) {
+              x = e.clientX - rect.width - offset;
+            }      
+            // flip vertically if overflowing bottom
+            if (y + rect.height > window.innerHeight) {
+              y = e.clientY - rect.height - offset;
+            }
+          segmenttooltip.style.left = x + "px";
+          segmenttooltip.style.top = y + "px";
+        }
+
+    // ****************************************** js code for the heat map section *****************************************************
+    const tooltip = document.getElementById("tooltip");
       
       document.addEventListener("mouseover", function (e) {
         const day = e.target.closest(".day");
@@ -345,6 +573,14 @@ const HOME_PAGE_HTML = `
 `
 
 const ACTIVITY_CHART_HTML = `
+<form hx-get="/summary" hx-trigger="submit" hx-target="#activity-chart">
+  <select name="year"> 
+  	{{range .YearOptions}}
+  	  <option value="{{.}}">{{.}}</option>
+    {{end}}
+  </select>
+  <button type="submit">Submit</button> 
+</form>
 <h2>Activity Tracker for {{ .Year }}</h2>
 <div class="heatmap">
   {{ range $month, $monthData := .MonthDailyActivities }}

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 	"text/template"
 	"time"
@@ -57,7 +59,7 @@ func todaysSummary() ([]ActivitySession, error) {
 
 func computeTemplateData() (*TemplateData, error) {
 	tmplData := &TemplateData{
-		YearOptions: yearOptions,
+		// YearOptions: yearOptions,
 	}
 	as, err := getCurrentActiveSession()
 	if err != nil {
@@ -90,7 +92,7 @@ func computeChartDataForYear(year string) (*ActivityChartData, error) {
 	}
 	//
 	activityChartData := transformActiveSessionsToActivityChartData(y, as)
-	//
+	activityChartData.YearOptions = yearOptions
 	return activityChartData, nil
 }
 
@@ -257,4 +259,25 @@ func initializeTemplates() {
 		tpl := template.Must(template.New("startSession").Parse(START_ACTIVITY_HTML))
 		tStartSessionAction = tpl
 	}
+}
+
+type envelope map[string]interface{}
+
+func writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
+	js, err := json.MarshalIndent(data, "", "\t")
+	if err != nil {
+		return err
+	}
+
+	js = append(js, '\n')
+
+	for key, value := range headers {
+		w.Header()[key] = value
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	w.Write(js)
+
+	return nil
 }
