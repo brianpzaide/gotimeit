@@ -24,19 +24,6 @@ const create_activitysessions_table = `CREATE TABLE IF NOT EXISTS activitysessio
 	stop_time TIMESTAMP
 );`
 
-// const get_activity_sessions_for_today = `
-// 	SELECT activity, ROUND(SUM(stop_time-start_time)*1.0/3600, 2) as hours
-// 	FROM activitysessions
-// 	WHERE date = ? AND stop_time is NOT NULL
-// 	GROUP BY activity;`
-
-// const get_activity_sessions_everyday_for_year = `
-// 	SELECT date, activity, ROUND(SUM(stop_time-start_time)*1.0/3600, 2) as hours
-// 	FROM activitysessions
-// 	WHERE strftime('%Y', date) = ? AND stop_time is NOT NULL
-// 	GROUP BY date, activity
-// 	ORDER BY date;`
-
 const get_activity_sessions_for_today = `
 	SELECT activity, SUM(stop_time-start_time)*1.0/60 as minutes 
 	FROM activitysessions 
