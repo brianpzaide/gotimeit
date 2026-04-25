@@ -24,7 +24,7 @@ var (
 	funcMap             map[string]any                = template.FuncMap{
 		"formatDate": func(t string) string {
 			tp, _ := time.Parse("2006-01-02", t)
-			return tp.Format("Jan 02, 2006")
+			return tp.Format("Mon, Jan 02, 2006")
 		},
 		"upper": strings.ToUpper,
 		"rowStart": func(index, weekDay int) int {

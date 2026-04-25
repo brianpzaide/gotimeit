@@ -54,22 +54,31 @@ func handleTodaysSummary(ctx context.Context, c *cli.Command) error {
 		},
 	}
 
-	unTracked := float32(24)
+	unTracked := 24 * 60
 	for i, session := range todaysSessions {
 		r := []*simpletable.Cell{
 			{Align: simpletable.AlignRight, Text: fmt.Sprintf("%d", i+1)},
 			{Text: session.Activity},
-			{Align: simpletable.AlignRight, Text: fmt.Sprintf("%.2f", session.Duration)},
+			{Align: simpletable.AlignRight, Text: session.DurationStr},
 		}
 		table.Body.Cells = append(table.Body.Cells, r)
-		unTracked -= session.Duration
+		unTracked -= int(session.Duration)
+	}
+
+	var unTrackedStr string
+	hours := int(unTracked / 60)
+	minutes := unTracked % 60
+	if minutes > 0 {
+		unTrackedStr = fmt.Sprintf("%d hr(s) & %d min(s)", hours, minutes)
+	} else {
+		unTrackedStr = fmt.Sprintf("%d hr(s)", hours)
 	}
 
 	// this is the time spent on untracked activities
 	r := []*simpletable.Cell{
 		{Align: simpletable.AlignRight, Text: fmt.Sprintf("%d", len(todaysSessions)+1)},
 		{Text: "unTracked"},
-		{Align: simpletable.AlignRight, Text: fmt.Sprintf("%.2f", unTracked)},
+		{Align: simpletable.AlignRight, Text: unTrackedStr},
 	}
 	table.Body.Cells = append(table.Body.Cells, r)
 
