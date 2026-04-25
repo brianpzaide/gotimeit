@@ -6,15 +6,27 @@ const ErrStartSession = "a session is already in progress. Please end the curren
 
 var ErrEndSession = "no current session in progress"
 
+// type ActivitySession struct {
+// 	Date     string
+// 	Activity string
+// 	Duration float32
+// }
+
 type ActivitySession struct {
-	Date     string
-	Activity string
-	Duration float32
+	Date        string
+	Activity    string
+	Duration    float32
+	DurationStr string
+}
+
+type SessionDuration struct {
+	DurationPercentage int
+	DurationStr        string
 }
 
 type DayActivities struct {
 	Date       string
-	Activities map[string]float32
+	Activities map[string]SessionDuration
 	TotalHours float32
 	Level      int
 }

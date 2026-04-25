@@ -140,11 +140,15 @@ func updateChartDataForCurrentYear(date string) error {
 	if err != nil {
 		return err
 	}
-	activities := make(map[string]float32)
+	activities := make(map[string]SessionDuration)
 	totalHours := float32(0)
 	for _, activitySession := range todaysSummary {
-		activities[activitySession.Activity] = activitySession.Duration
-		totalHours += activitySession.Duration
+		sessionDuration := SessionDuration{
+			DurationPercentage: int(activitySession.Duration * 100 / 1440),
+			DurationStr:        activitySession.DurationStr,
+		}
+		activities[activitySession.Activity] = sessionDuration
+		totalHours += (activitySession.Duration / 60)
 	}
 
 	t, err := time.Parse("2006-01-02", date)
@@ -171,14 +175,18 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 		if !OK {
 			da = &DayActivities{
 				Date:       as.Date,
-				Activities: make(map[string]float32),
+				Activities: make(map[string]SessionDuration),
 				TotalHours: 0,
 				Level:      0,
 			}
 			daMap[as.Date] = da
 		}
-		da.Activities[as.Activity] = as.Duration
-		da.TotalHours += as.Duration
+		sessionDuration := SessionDuration{
+			DurationPercentage: int(as.Duration * 100 / 1440),
+			DurationStr:        as.DurationStr,
+		}
+		da.Activities[as.Activity] = sessionDuration
+		da.TotalHours += (as.Duration / 60)
 		da.Level = getLevel(da.TotalHours)
 	}
 

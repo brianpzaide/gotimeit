@@ -24,14 +24,27 @@ const create_activitysessions_table = `CREATE TABLE IF NOT EXISTS activitysessio
 	stop_time TIMESTAMP
 );`
 
+// const get_activity_sessions_for_today = `
+// 	SELECT activity, ROUND(SUM(stop_time-start_time)*1.0/3600, 2) as hours
+// 	FROM activitysessions
+// 	WHERE date = ? AND stop_time is NOT NULL
+// 	GROUP BY activity;`
+
+// const get_activity_sessions_everyday_for_year = `
+// 	SELECT date, activity, ROUND(SUM(stop_time-start_time)*1.0/3600, 2) as hours
+// 	FROM activitysessions
+// 	WHERE strftime('%Y', date) = ? AND stop_time is NOT NULL
+// 	GROUP BY date, activity
+// 	ORDER BY date;`
+
 const get_activity_sessions_for_today = `
-	SELECT activity, ROUND(SUM(stop_time-start_time)*1.0/3600, 2) as hours 
+	SELECT activity, SUM(stop_time-start_time)*1.0/60 as minutes 
 	FROM activitysessions 
 	WHERE date = ? AND stop_time is NOT NULL 
 	GROUP BY activity;`
 
 const get_activity_sessions_everyday_for_year = `
-	SELECT date, activity, ROUND(SUM(stop_time-start_time)*1.0/3600, 2) as hours 
+	SELECT date, activity, SUM(stop_time-start_time)*1.0/60 as minutes 
 	FROM activitysessions 
 	WHERE strftime('%Y', date) = ? AND stop_time is NOT NULL
 	GROUP BY date, activity
@@ -202,6 +215,7 @@ func getTimeSpentOnEachActivityFor(date string) ([]ActivitySession, error) {
 
 	for rows.Next() {
 		var activitySession ActivitySession
+		var hours, minutes int
 		err = rows.Scan(
 			&activitySession.Activity,
 			&activitySession.Duration,
@@ -209,6 +223,14 @@ func getTimeSpentOnEachActivityFor(date string) ([]ActivitySession, error) {
 		if err != nil {
 			return nil, err
 		}
+		hours = int(activitySession.Duration / 60)
+		minutes = int(activitySession.Duration) % 60
+		if minutes > 0 {
+			activitySession.DurationStr = fmt.Sprintf("%d hr(s) & %d min(s)", hours, minutes)
+		} else {
+			activitySession.DurationStr = fmt.Sprintf("%d hr(s)", hours)
+		}
+
 		sessions = append(sessions, activitySession)
 	}
 	return sessions, nil
@@ -229,6 +251,7 @@ func getTimeSpentOnEachActivityEverydayForYear(year string) ([]ActivitySession, 
 
 	for rows.Next() {
 		var activitySession ActivitySession
+		var hours, minutes int
 		err = rows.Scan(
 			&activitySession.Date,
 			&activitySession.Activity,
@@ -236,6 +259,13 @@ func getTimeSpentOnEachActivityEverydayForYear(year string) ([]ActivitySession, 
 		)
 		if err != nil {
 			return nil, err
+		}
+		hours = int(activitySession.Duration / 60)
+		minutes = int(activitySession.Duration) % 60
+		if minutes > 0 {
+			activitySession.DurationStr = fmt.Sprintf("%d hr(s) & %d min(s)", hours, minutes)
+		} else {
+			activitySession.DurationStr = fmt.Sprintf("%d hr(s)", hours)
 		}
 		sessions = append(sessions, activitySession)
 	}

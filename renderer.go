@@ -98,7 +98,7 @@ const HOME_PAGE_HTML = `
     <style>
       body {
         margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        font-family: Arial;
         background: #f5f7fa;
         padding: 40px 20px;
       }
@@ -178,7 +178,7 @@ const HOME_PAGE_HTML = `
         color: #fff;
         padding: 6px 10px;
         font-size: 12px;
-        border-radius: 6px;
+        border-radius: 4px;
         white-space: nowrap;
         pointer-events: none;
         opacity: 0;
@@ -276,14 +276,38 @@ const HOME_PAGE_HTML = `
 
       .tooltip table {
         border-collapse: collapse;
+        margin-top: 4px;
       }
 
       .tooltip td {
         padding: 2px 6px;
       }
 
+      .tooltip-row {
+        margin-bottom: 6px;
+      }
+
+      .tooltip-text {
+        font-size: 11px;
+        margin-bottom: 2px;
+      }
+
       .day:hover .tooltip {
         display: block;
+      }
+
+      .bar-container {
+        width: 100%;
+        height: 6px;
+        background-color: #555;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+
+      .bar-fill {
+        height: 100%;
+        background-color: #4caf50;
+        width: 0%;
       }
 
       /* css for the session card(start/stop) */
@@ -365,10 +389,19 @@ const HOME_PAGE_HTML = `
                     {{ range $index, $dayActivities := $monthData.DA }}
                       <div class="day level-{{ $dayActivities.Level }}"
                            data-tooltip='
-                             <strong>{{ formatDate $dayActivities.Date }}</strong><br>
-                             {{range $activity, $hours := $dayActivities.Activities}}
-                               {{$activity}}: {{$hours}} hrs<br>
-                             {{end}}
+                           <strong>{{ formatDate $dayActivities.Date }}</strong>
+                            <div class="tooltip-table">
+                              {{range $activity, $sessionDuration := $dayActivities.Activities}}
+                                <div class="tooltip-row">
+                                  <div class="tooltip-text">
+                                    {{$activity}}: {{$sessionDuration.DurationStr}}
+                                  </div>
+                                  <div class="bar-container">
+                                    <div class="bar-fill" style="width: {{$sessionDuration.DurationPercentage}}%;"></div>
+                                  </div>
+                                </div>
+                              {{end}}
+                            </div>
                            ' style="grid-row-start: {{ rowStart $monthData.Offset  $index }};">
                       </div>
                     {{ end }}
@@ -590,10 +623,19 @@ const ACTIVITY_CHART_HTML = `
           {{ range $index, $dayActivities := $monthData.DA }}
             <div class="day level-{{ $dayActivities.Level }}"
                  data-tooltip='
-                   <strong>{{ formatDate $dayActivities.Date }}</strong><br>
-                   {{range $activity, $hours := $dayActivities.Activities}}
-                     {{$activity}}: {{$hours}} hrs<br>
-                   {{end}}
+                  <strong>{{ formatDate $dayActivities.Date }}</strong>
+                  <div class="tooltip-table">
+                    {{range $activity, $sessionDuration := $dayActivities.Activities}}
+                      <div class="tooltip-row">
+                        <div class="tooltip-text">
+                          {{$activity}}: {{$sessionDuration.DurationStr}}
+                        </div>
+                        <div class="bar-container">
+                          <div class="bar-fill" style="width: {{$sessionDuration.DurationPercentage}}%;"></div>
+                        </div>
+                      </div>
+                    {{end}}
+                  </div>
                  ' style="grid-row-start: {{ rowStart $monthData.Offset  $index }};">
             </div>
           {{ end }}
