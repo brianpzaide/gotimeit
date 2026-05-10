@@ -255,10 +255,12 @@ const HOME_PAGE_HTML = `
       }
 
       .level-0 { background-color: #ebedf0; }
-      .level-1 { background-color: #c6e48b; }
-      .level-2 { background-color: #7bc96f; }
-      .level-3 { background-color: #239a3b; }
-      .level-4 { background-color: #196127; }
+      .level-1 { background-color: #68ee59; }
+      .level-2 { background-color: #3fde26; }
+      .level-3 { background-color: #38ae50; }
+      .level-4 { background-color: #196c2a; }
+      .level-5 { background-color: #034b11; }
+      .level-6 { background-color: #000a02; }
 
       .tooltip {
         position: fixed;
