@@ -391,7 +391,8 @@ const HOME_PAGE_HTML = `
                     {{ range $index, $dayActivities := $monthData.DA }}
                       <div class="day level-{{ $dayActivities.Level }}"
                            data-tooltip='
-                           <span><strong>{{ formatDate $dayActivities.Date }}</strong>, &nbsp; {{$dayActivities.TotalHoursStr}}</span>
+                           <span><strong>{{ formatDate $dayActivities.Date }}</strong>, &nbsp; [{{$dayActivities.TotalHoursStr}}]</span>
+                           <hr>
                             <div class="tooltip-table">
                               {{range $activity, $sessionDuration := $dayActivities.Activities}}
                                 <div class="tooltip-row">
@@ -625,7 +626,8 @@ const ACTIVITY_CHART_HTML = `
           {{ range $index, $dayActivities := $monthData.DA }}
             <div class="day level-{{ $dayActivities.Level }}"
                  data-tooltip='
-                  <span><strong>{{ formatDate $dayActivities.Date }}</strong>, &nbsp; {{$dayActivities.TotalHoursStr}}</span>
+                  <span><strong>{{ formatDate $dayActivities.Date }}</strong>, &nbsp; [{{$dayActivities.TotalHoursStr}}]</span>
+                  <hr>
                   <div class="tooltip-table">
                     {{range $activity, $sessionDuration := $dayActivities.Activities}}
                       <div class="tooltip-row">
