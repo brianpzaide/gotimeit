@@ -273,9 +273,8 @@ const HOME_PAGE_HTML = `
         white-space: nowrap;
         z-index: 9999;
         display: none;
-        max-width: 220px;
       }
-
+        
       .tooltip table {
         border-collapse: collapse;
         margin-top: 4px;

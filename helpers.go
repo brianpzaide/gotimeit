@@ -160,11 +160,16 @@ func updateChartDataForCurrentYear(date string) error {
 
 	total_hours := int(totalHours)
 	total_minutes := int((float64(totalHours) - math.Floor(float64(totalHours))) * 60)
-	var totalHoursStr string
+	var totalStr string
+	if total_hours > 0 {
+		totalStr = fmt.Sprintf("%d hr(s)", total_hours)
+	}
+
 	if total_minutes > 0 {
-		totalHoursStr = fmt.Sprintf("%d hr(s) & %d min(s)", total_hours, total_minutes)
-	} else {
-		totalHoursStr = fmt.Sprintf("%d hr(s)", total_hours)
+		if total_hours > 0 {
+			totalStr += " & "
+		}
+		totalStr += fmt.Sprintf("%d min(s)", total_minutes)
 	}
 
 	t, err := time.Parse("2006-01-02", date)
@@ -176,7 +181,7 @@ func updateChartDataForCurrentYear(date string) error {
 	mwam.MonthDailyActivities[month].DA[dayNumber].Date = date
 	mwam.MonthDailyActivities[month].DA[dayNumber].Activities = activities
 	mwam.MonthDailyActivities[month].DA[dayNumber].TotalHours = totalHours
-	mwam.MonthDailyActivities[month].DA[dayNumber].TotalHoursStr = totalHoursStr
+	mwam.MonthDailyActivities[month].DA[dayNumber].TotalHoursStr = totalStr
 	mwam.MonthDailyActivities[month].DA[dayNumber].Level = getLevel(totalHours)
 
 	chartDataByYear[cy] = mwam
@@ -236,10 +241,15 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 			}
 			total_hours := int(da.TotalHours)
 			total_minutes := int((float64(da.TotalHours) - math.Floor(float64(da.TotalHours))) * 60)
-			if total_minutes > 0 {
-				da.TotalHoursStr = fmt.Sprintf("%d hr(s) & %d min(s)", total_hours, total_minutes)
-			} else {
+			if total_hours > 0 {
 				da.TotalHoursStr = fmt.Sprintf("%d hr(s)", total_hours)
+			}
+
+			if total_minutes > 0 {
+				if total_hours > 0 {
+					da.TotalHoursStr += " & "
+				}
+				da.TotalHoursStr += fmt.Sprintf("%d min(s)", total_minutes)
 			}
 
 			days = append(days, da)

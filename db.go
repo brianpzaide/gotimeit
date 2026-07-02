@@ -212,10 +212,14 @@ func getTimeSpentOnEachActivityFor(date string) ([]ActivitySession, error) {
 		}
 		hours = int(activitySession.Duration / 60)
 		minutes = int(activitySession.Duration) % 60
-		if minutes > 0 {
-			activitySession.DurationStr = fmt.Sprintf("%d hr(s) & %d min(s)", hours, minutes)
-		} else {
+		if hours > 0 {
 			activitySession.DurationStr = fmt.Sprintf("%d hr(s)", hours)
+		}
+		if minutes > 0 {
+			if hours > 0 {
+				activitySession.DurationStr += " & "
+			}
+			activitySession.DurationStr += fmt.Sprintf("%d min(s)", minutes)
 		}
 
 		sessions = append(sessions, activitySession)
@@ -249,10 +253,14 @@ func getTimeSpentOnEachActivityEverydayForYear(year string) ([]ActivitySession, 
 		}
 		hours = int(activitySession.Duration / 60)
 		minutes = int(activitySession.Duration) % 60
-		if minutes > 0 {
-			activitySession.DurationStr = fmt.Sprintf("%d hr(s) & %d min(s)", hours, minutes)
-		} else {
+		if hours > 0 {
 			activitySession.DurationStr = fmt.Sprintf("%d hr(s)", hours)
+		}
+		if minutes > 0 {
+			if hours > 0 {
+				activitySession.DurationStr += " & "
+			}
+			activitySession.DurationStr += fmt.Sprintf("%d min(s)", minutes)
 		}
 		sessions = append(sessions, activitySession)
 	}
