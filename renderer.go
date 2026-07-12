@@ -389,6 +389,7 @@ const HOME_PAGE_HTML = `
                   <div class="month-grid">
                     {{ range $index, $dayActivities := $monthData.DA }}
                       <div class="day level-{{ $dayActivities.Level }}"
+                           data-day="{{$dayActivities.Date}}" 
                            data-tooltip='
                            <span><strong>{{ formatDate $dayActivities.Date }}</strong>, &nbsp; [{{$dayActivities.TotalHoursStr}}]</span>
                            <hr>
@@ -566,8 +567,16 @@ const HOME_PAGE_HTML = `
         }
 
     // ****************************************** js code for the heat map section *****************************************************
-    const tooltip = document.getElementById("tooltip");
-      
+      const tooltip = document.getElementById("tooltip");
+
+      document.addEventListener("mousedown", function (e) {
+        const day = e.target.dataset.day
+        if (!day) return;
+        console.log(day)
+        datePicker.value = day;
+        updateView(day);
+      });
+
       document.addEventListener("mouseover", function (e) {
         const day = e.target.closest(".day");
         if (!day) return;
