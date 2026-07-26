@@ -25,11 +25,12 @@ type SessionDuration struct {
 }
 
 type DayActivities struct {
-	Date          string
-	Activities    map[string]SessionDuration
-	TotalHours    float32
-	TotalHoursStr string
-	Level         int
+	Date                    string
+	Activities              map[string]SessionDuration
+	TotalHours              float32
+	TotalDurationPercentage float32
+	TotalHoursStr           string
+	Level                   int
 }
 
 type ActivityChartData struct {

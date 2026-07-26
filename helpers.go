@@ -160,6 +160,7 @@ func updateChartDataForCurrentYear(date string) error {
 
 	total_hours := int(totalHours)
 	total_minutes := int((float64(totalHours) - math.Floor(float64(totalHours))) * 60)
+	total_duration_percentage := float32((total_hours*60+total_minutes)*100) / 1440
 	var totalStr string
 	if total_hours > 0 {
 		totalStr = fmt.Sprintf("%d hr(s)", total_hours)
@@ -181,6 +182,7 @@ func updateChartDataForCurrentYear(date string) error {
 	mwam.MonthDailyActivities[month].DA[dayNumber].Date = date
 	mwam.MonthDailyActivities[month].DA[dayNumber].Activities = activities
 	mwam.MonthDailyActivities[month].DA[dayNumber].TotalHours = totalHours
+	mwam.MonthDailyActivities[month].DA[dayNumber].TotalDurationPercentage = total_duration_percentage
 	mwam.MonthDailyActivities[month].DA[dayNumber].TotalHoursStr = totalStr
 	mwam.MonthDailyActivities[month].DA[dayNumber].Level = getLevel(totalHours)
 
@@ -241,6 +243,8 @@ func transformActiveSessionsToActivityChartData(year int, activitySessions []Act
 			}
 			total_hours := int(da.TotalHours)
 			total_minutes := int((float64(da.TotalHours) - math.Floor(float64(da.TotalHours))) * 60)
+			total_duration_percentage := float32((total_hours*60+total_minutes)*100) / 1440
+			da.TotalDurationPercentage = total_duration_percentage
 			if total_hours > 0 {
 				da.TotalHoursStr = fmt.Sprintf("%d hr(s)", total_hours)
 			}

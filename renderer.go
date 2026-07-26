@@ -391,7 +391,7 @@ const HOME_PAGE_HTML = `
                       <div class="day level-{{ $dayActivities.Level }}"
                            data-day="{{$dayActivities.Date}}" 
                            data-tooltip='
-                           <span><strong>{{ formatDate $dayActivities.Date }}</strong>, &nbsp; [{{$dayActivities.TotalHoursStr}}]</span>
+                           <span><strong>{{ formatDate $dayActivities.Date }}</strong></span>
                            <hr>
                             <div class="tooltip-table">
                               {{range $activity, $sessionDuration := $dayActivities.Activities}}
@@ -404,6 +404,15 @@ const HOME_PAGE_HTML = `
                                   </div>
                                 </div>
                               {{end}}
+                              <hr>
+                              <div class="tooltip-row">
+                                <div class="tooltip-text">
+                                  <strong>Total:</strong> {{$dayActivities.TotalHoursStr}}
+                                </div>
+                                <div class="bar-container">
+                                  <div class="bar-fill" style="width: {{$dayActivities.TotalDurationPercentage}}%;"></div>
+                                </div>
+                              </div>
                             </div>
                            ' style="grid-row-start: {{ rowStart $monthData.Offset  $index }};">
                       </div>
@@ -634,7 +643,7 @@ const ACTIVITY_CHART_HTML = `
           {{ range $index, $dayActivities := $monthData.DA }}
             <div class="day level-{{ $dayActivities.Level }}"
                  data-tooltip='
-                  <span><strong>{{ formatDate $dayActivities.Date }}</strong>, &nbsp; [{{$dayActivities.TotalHoursStr}}]</span>
+                  <span><strong>{{ formatDate $dayActivities.Date }}</strong></span>
                   <hr>
                   <div class="tooltip-table">
                     {{range $activity, $sessionDuration := $dayActivities.Activities}}
@@ -647,6 +656,15 @@ const ACTIVITY_CHART_HTML = `
                         </div>
                       </div>
                     {{end}}
+                    <hr>
+                    <div class="tooltip-row">
+                      <div class="tooltip-text">
+                        <strong>Total:</strong> {{$dayActivities.TotalHoursStr}}
+                      </div>
+                      <div class="bar-container">
+                        <div class="bar-fill" style="width: {{$dayActivities.TotalDurationPercentage}}%;"></div>
+                      </div>
+                    </div>                    
                   </div>
                  ' style="grid-row-start: {{ rowStart $monthData.Offset  $index }};">
             </div>
