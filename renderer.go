@@ -363,7 +363,7 @@ const HOME_PAGE_HTML = `
         <input type="date" id="datePicker" />
       </div>
     
-      <div class="segmanetcard-body">
+      <div class="segmentcard-body">
         <div class="bar">
           <div class="markers" id="markers"></div>
         </div>
@@ -391,29 +391,25 @@ const HOME_PAGE_HTML = `
                       <div class="day level-{{ $dayActivities.Level }}"
                            data-day="{{$dayActivities.Date}}" 
                            data-tooltip='
-                           <span><strong>{{ formatDate $dayActivities.Date }}</strong></span>
-                           <hr>
-                            <div class="tooltip-table">
-                              {{range $activity, $sessionDuration := $dayActivities.Activities}}
-                                <div class="tooltip-row">
-                                  <div class="tooltip-text">
-                                    {{$activity}}: {{$sessionDuration.DurationStr}}
-                                  </div>
-                                  <div class="bar-container">
-                                    <div class="bar-fill" style="width: {{$sessionDuration.DurationPercentage}}%;"></div>
-                                  </div>
-                                </div>
-                              {{end}}
-                              <hr>
-                              <div class="tooltip-row">
-                                <div class="tooltip-text">
-                                  <strong>Total:</strong> {{$dayActivities.TotalHoursStr}}
-                                </div>
-                                <div class="bar-container">
-                                  <div class="bar-fill" style="width: {{$dayActivities.TotalDurationPercentage}}%;"></div>
-                                </div>
+                           <span><strong>{{ formatDate $dayActivities.Date }}</strong>, &nbsp; [{{$dayActivities.TotalHoursStr}}]</span>
+                            <div class="tooltip-row">
+                              <div class="bar-container">
+                                <div class="bar-fill" style="width: {{$dayActivities.TotalDurationPercentage}}%;"></div>
                               </div>
                             </div>
+                           <hr>
+                           <div class="tooltip-table">
+                             {{range $activity, $sessionDuration := $dayActivities.Activities}}
+                               <div class="tooltip-row">
+                                 <div class="tooltip-text">
+                                   {{$activity}}: {{$sessionDuration.DurationStr}}
+                                 </div>
+                                 <div class="bar-container">
+                                   <div class="bar-fill" style="width: {{$sessionDuration.DurationPercentage}}%;"></div>
+                                 </div>
+                               </div>
+                             {{end}}
+                           </div>
                            ' style="grid-row-start: {{ rowStart $monthData.Offset  $index }};">
                       </div>
                     {{ end }}
@@ -481,8 +477,7 @@ const HOME_PAGE_HTML = `
           const url = "/segments?date=" + date;
           var res = await fetch(url);
           res = await res.json();
-          segments = res.Segments;
-          return segments
+          return res.Segments;
         }
 
         function getDayStart(dateStr) {
@@ -581,7 +576,6 @@ const HOME_PAGE_HTML = `
       document.addEventListener("mousedown", function (e) {
         const day = e.target.dataset.day
         if (!day) return;
-        console.log(day)
         datePicker.value = day;
         updateView(day);
       });
@@ -642,8 +636,14 @@ const ACTIVITY_CHART_HTML = `
         <div class="month-grid">
           {{ range $index, $dayActivities := $monthData.DA }}
             <div class="day level-{{ $dayActivities.Level }}"
+                 data-day="{{$dayActivities.Date}}"
                  data-tooltip='
-                  <span><strong>{{ formatDate $dayActivities.Date }}</strong></span>
+                 <span><strong>{{ formatDate $dayActivities.Date }}</strong>, &nbsp; [{{$dayActivities.TotalHoursStr}}]</span>
+                  <div class="tooltip-row">
+                    <div class="bar-container">
+                      <div class="bar-fill" style="width: {{$dayActivities.TotalDurationPercentage}}%;"></div>
+                    </div>
+                  </div>
                   <hr>
                   <div class="tooltip-table">
                     {{range $activity, $sessionDuration := $dayActivities.Activities}}
@@ -655,16 +655,7 @@ const ACTIVITY_CHART_HTML = `
                           <div class="bar-fill" style="width: {{$sessionDuration.DurationPercentage}}%;"></div>
                         </div>
                       </div>
-                    {{end}}
-                    <hr>
-                    <div class="tooltip-row">
-                      <div class="tooltip-text">
-                        <strong>Total:</strong> {{$dayActivities.TotalHoursStr}}
-                      </div>
-                      <div class="bar-container">
-                        <div class="bar-fill" style="width: {{$dayActivities.TotalDurationPercentage}}%;"></div>
-                      </div>
-                    </div>                    
+                    {{end}}                 
                   </div>
                  ' style="grid-row-start: {{ rowStart $monthData.Offset  $index }};">
             </div>
