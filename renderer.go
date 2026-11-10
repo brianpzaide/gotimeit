@@ -260,7 +260,6 @@ const HOME_PAGE_HTML = `
       .level-3 { background-color: #38ae50; }
       .level-4 { background-color: #196c2a; }
       .level-5 { background-color: #034b11; }
-      .level-6 { background-color: #000a02; }
 
       .tooltip {
         position: fixed;

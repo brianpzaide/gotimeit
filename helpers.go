@@ -101,22 +101,20 @@ func getLevel(k float32) int {
 	if k == float32(0) {
 		return 0
 	}
-	if k <= float32(1) {
+	if k <= float32(2) {
 		return 1
 	}
-	if k <= float32(2) {
+	if k <= float32(4) {
 		return 2
 	}
-	if k < float32(3) {
+	if k < float32(6) {
 		return 3
 	}
-	if k < float32(4) {
+	if k < float32(8) {
 		return 4
 	}
-	if k < float32(5) {
-		return 5
-	}
-	return 6
+
+	return 5
 }
 
 func isLeapYear(year int) bool {
